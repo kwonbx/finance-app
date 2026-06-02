@@ -1,5 +1,6 @@
 package com.example.we_spend
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,11 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -43,6 +46,9 @@ fun LoginScreen(navController: NavController) {
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val auth = remember { FirebaseAuth.getInstance() }
 
     Column(
         modifier = Modifier
@@ -118,7 +124,28 @@ fun LoginScreen(navController: NavController) {
 
         Button(
             onClick = {
-                // Tutaj w przyszłości dodasz logikę uwierzytelniania
+                if (email.isNotBlank() && password.isNotBlank()) {
+                    auth.signInWithEmailAndPassword(email.trim(), password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                Toast.makeText(context, "Zalogowano pomyślnie!", Toast.LENGTH_SHORT).show()
+
+                                // Przejście do głównego ekranu aplikacji (np. "home")
+                                // navController.navigate("home") {
+                                //     // Czyścimy backstack, żeby nie można było wrócić do logowania przyciskiem "wstecz"
+                                //     popUpTo("login") { inclusive = true }
+                                // }
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Błąd logowania: ${task.exception?.localizedMessage}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                } else {
+                    Toast.makeText(context, "Wpisz e-mail i hasło", Toast.LENGTH_SHORT).show()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()

@@ -1,5 +1,6 @@
 package com.example.we_spend
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,11 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -52,6 +55,10 @@ fun RegisterScreen(navController: NavController) {
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
+
+    val context = LocalContext.current
+    val auth = remember { FirebaseAuth.getInstance() }
+    val userRepository = remember { UserRepository() }
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -159,8 +166,35 @@ fun RegisterScreen(navController: NavController) {
 
         Button(
             onClick = {
-                // Przyszła logika rejestracji
-                navController.popBackStack()
+                if (email.isNotBlank() && password.isNotBlank() && name.isNotBlank()) {
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                userRepository.saveUserToDatabase(
+                                    name = name,
+                                    email = email,
+                                    dateOfBirth = dateOfBirth,
+                                    onSuccess = {
+                                        Toast.makeText(context, "Konto zostało utworzone!", Toast.LENGTH_SHORT).show()
+                                         navController.navigate("login") {
+                                             popUpTo("register") { inclusive = true }
+                                         }
+                                    },
+                                    onFailure = { e ->
+                                        Toast.makeText(context, "Błąd zapisu danych: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Błąd rejestracji: ${task.exception?.localizedMessage}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                } else {
+                    Toast.makeText(context, "Wypełnij wszystkie wymagane pola", Toast.LENGTH_SHORT).show()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
