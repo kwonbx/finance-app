@@ -60,9 +60,9 @@ fun SplashScreen(navController: NavController) {
 
         delay(1500)
 
-//        navController.navigate("login") {
-//            popUpTo("splash") { inclusive = true }
-//        }
+        navController.navigate("login") {
+            popUpTo("splash") { inclusive = true }
+        }
     }
 
     val iconAlpha = iconProgress.value

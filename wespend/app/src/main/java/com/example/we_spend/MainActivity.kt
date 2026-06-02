@@ -36,5 +36,13 @@ fun MyApp() {
         composable("splash") {
             SplashScreen(navController)
         }
+
+        composable("login") {
+            LoginScreen(navController)
+        }
+
+        composable("register") {
+            RegisterScreen(navController)
+        }
     }
 }
