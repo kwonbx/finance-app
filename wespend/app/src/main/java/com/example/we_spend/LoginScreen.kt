@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,14 +42,11 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun LoginScreen(navController: NavController) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+fun LoginScreen(navController: NavController, viewModel: LoginViewModel) {
     var isPasswordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val auth = remember { FirebaseAuth.getInstance() }
 
     Column(
         modifier = Modifier
@@ -74,8 +72,8 @@ fun LoginScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
+            value = viewModel.email,
+            onValueChange = { viewModel.updateEmail(it) },
             label = { Text("E-mail") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -85,8 +83,8 @@ fun LoginScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField (
-            value = password,
-            onValueChange = { password = it },
+            value = viewModel.password,
+            onValueChange = { viewModel.updatePassword(it) },
             label = { Text("Hasło") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -123,35 +121,27 @@ fun LoginScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
+            enabled = !viewModel.isLoading,
             onClick = {
-                if (email.isNotBlank() && password.isNotBlank()) {
-                    auth.signInWithEmailAndPassword(email.trim(), password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                Toast.makeText(context, "Zalogowano pomyślnie!", Toast.LENGTH_SHORT).show()
-
-                                // Przejście do głównego ekranu aplikacji (np. "home")
-                                // navController.navigate("home") {
-                                //     // Czyścimy backstack, żeby nie można było wrócić do logowania przyciskiem "wstecz"
-                                //     popUpTo("login") { inclusive = true }
-                                // }
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Błąd logowania: ${task.exception?.localizedMessage}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                } else {
-                    Toast.makeText(context, "Wpisz e-mail i hasło", Toast.LENGTH_SHORT).show()
-                }
+                viewModel.loginUser(
+                    onSuccess = {
+                        Toast.makeText(context, "Zalogowano!", Toast.LENGTH_SHORT).show()
+                        // navController.navigate("home") { popUpTo("login") { inclusive = true } }
+                    },
+                    onError = { errorMessage ->
+                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                    }
+                )
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text(text = "Zaloguj się")
+            if (viewModel.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text(text = "Zaloguj się")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

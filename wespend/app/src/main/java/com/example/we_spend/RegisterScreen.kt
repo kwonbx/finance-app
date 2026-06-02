@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
@@ -46,19 +48,13 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun RegisterScreen(navController: NavController) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+fun RegisterScreen(navController: NavController, viewModel: RegisterViewModel) {
     var isPasswordVisible by remember { mutableStateOf(false) }
-    var dateOfBirth by remember { mutableStateOf("") }
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
     val context = LocalContext.current
-    val auth = remember { FirebaseAuth.getInstance() }
-    val userRepository = remember { UserRepository() }
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -71,7 +67,7 @@ fun RegisterScreen(navController: NavController) {
                             .atZone(ZoneId.systemDefault())
                             .toLocalDate()
                         val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                        dateOfBirth = localDate.format(formatter)
+                        viewModel.updateDateOfBirth(localDate.format(formatter))
                     }
                     showDatePicker = false
                 }) {
@@ -104,8 +100,8 @@ fun RegisterScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
+            value = viewModel.name,
+            onValueChange = { viewModel.updateName(it)},
             label = { Text("Imię") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -114,8 +110,8 @@ fun RegisterScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
+            value = viewModel.email,
+            onValueChange = { viewModel.updateEmail(it) },
             label = { Text("E-mail") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -125,8 +121,8 @@ fun RegisterScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
+            value = viewModel.password,
+            onValueChange = { viewModel.updatePassword(it) },
             label = { Text("Hasło") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -144,7 +140,7 @@ fun RegisterScreen(navController: NavController) {
 
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
-                value = dateOfBirth,
+                value = viewModel.dateOfBirth,
                 onValueChange = {},
                 label = { Text("Data urodzenia") },
                 readOnly = true,
@@ -165,42 +161,27 @@ fun RegisterScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
+            enabled = !viewModel.isLoading,
             onClick = {
-                if (email.isNotBlank() && password.isNotBlank() && name.isNotBlank()) {
-                    auth.createUserWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                userRepository.saveUserToDatabase(
-                                    name = name,
-                                    email = email,
-                                    dateOfBirth = dateOfBirth,
-                                    onSuccess = {
-                                        Toast.makeText(context, "Konto zostało utworzone!", Toast.LENGTH_SHORT).show()
-                                         navController.navigate("login") {
-                                             popUpTo("register") { inclusive = true }
-                                         }
-                                    },
-                                    onFailure = { e ->
-                                        Toast.makeText(context, "Błąd zapisu danych: ${e.message}", Toast.LENGTH_LONG).show()
-                                    }
-                                )
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Błąd rejestracji: ${task.exception?.localizedMessage}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                viewModel.registerUser(
+                    onSuccess = {
+                        Toast.makeText(context, "Konto zostało utworzone!", Toast.LENGTH_SHORT).show()
+                        navController.navigate("login") {
+                            popUpTo("register") { inclusive = true }
                         }
-                } else {
-                    Toast.makeText(context, "Wypełnij wszystkie wymagane pola", Toast.LENGTH_SHORT).show()
-                }
+                    },
+                    onError = { errorMessage ->
+                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                    }
+                )
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
+            modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
-            Text(text = "Zarejestruj się")
+            if (viewModel.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text(text = "Zarejestruj się")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
