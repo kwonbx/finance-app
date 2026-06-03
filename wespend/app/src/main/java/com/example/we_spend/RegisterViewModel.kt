@@ -50,7 +50,7 @@ class RegisterViewModel(private val auth: FirebaseAuth, private val userReposito
                     )
                 } else {
                     isLoading = false
-                    onError(task.exception?.localizedMessage ?: "Błąd rejestracji")
+                    onError(getPolishAuthErrorMessage(task.exception))
                 }
             }
     }

@@ -25,21 +25,24 @@ class MainActivity : ComponentActivity() {
 
         val auth = FirebaseAuth.getInstance()
         val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
 
         setContent {
             WespendTheme {
-                MyApp(auth, userRepository)
+                MyApp(auth, userRepository, expenseRepository)
             }
         }
     }
 }
 
 @Composable
-fun MyApp(auth: FirebaseAuth, userRepository: UserRepository) {
+fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository: ExpenseRepository) {
     val navController = rememberNavController()
 
     val vmLogin: LoginViewModel = viewModel(factory = LoginViewModel.Factory(auth))
     val vmRegister: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(auth, userRepository))
+    val vmHome: HomeViewModel = viewModel(factory = HomeViewModel.Factory(expenseRepository, userRepository))
+    val vmAddExpense: AddExpenseViewModel = viewModel(factory = AddExpenseViewModel.Factory(expenseRepository))
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -52,6 +55,14 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository) {
 
         composable("register") {
             RegisterScreen(navController, vmRegister)
+        }
+
+        composable("home") {
+            HomeScreen(navController = navController, vmHome)
+        }
+
+        composable("add_expense") {
+            AddExpenseScreen(navController = navController, viewModel = vmAddExpense)
         }
     }
 }

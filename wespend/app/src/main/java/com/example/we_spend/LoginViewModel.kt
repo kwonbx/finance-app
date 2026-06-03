@@ -33,7 +33,7 @@ class LoginViewModel(private val auth: FirebaseAuth) : ViewModel() {
                 if (task.isSuccessful) {
                     onSuccess()
                 } else {
-                    onError(task.exception?.localizedMessage ?: "Nieznany błąd logowania")
+                    onError(getPolishAuthErrorMessage(task.exception))
                 }
             }
     }

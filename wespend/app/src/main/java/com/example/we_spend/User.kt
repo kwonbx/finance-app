@@ -4,5 +4,6 @@ data class User(
     val uid: String = "",
     val name: String = "",
     val email: String = "",
-    val dateOfBirth: String = ""
+    val dateOfBirth: String = "",
+    val monthlyLimit: Double = 0.0
 )

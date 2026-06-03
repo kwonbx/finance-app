@@ -126,7 +126,9 @@ fun LoginScreen(navController: NavController, viewModel: LoginViewModel) {
                 viewModel.loginUser(
                     onSuccess = {
                         Toast.makeText(context, "Zalogowano!", Toast.LENGTH_SHORT).show()
-                        // navController.navigate("home") { popUpTo("login") { inclusive = true } }
+                        navController.navigate("home") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     },
                     onError = { errorMessage ->
                         Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
