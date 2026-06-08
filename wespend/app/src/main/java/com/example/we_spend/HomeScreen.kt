@@ -5,9 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Warning
@@ -17,8 +19,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
@@ -41,8 +45,6 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
         viewModel.loadData()
     }
 
-
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -50,52 +52,113 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
-                )
-                {
-                    Icon(
-                        imageVector = Icons.Filled.Payments,
-                        contentDescription = "WeSpend Logo",
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
+                ) {
+                    val displayedName = viewModel.userName.ifBlank { "Użytkownik" }
+                    val initial = displayedName.take(1).uppercase()
+
+                    val avatarBitmap = decodeBase64Image(viewModel.avatarUrl)
+
+                    if (avatarBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = avatarBitmap,
+                            contentDescription = "Awatar użytkownika",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = initial,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
 
                     Text(
-                        text = "WeSpend",
+                        text = displayedName,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    IconButton(onClick = { scope.launch { drawerState.close() } }) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Zamknij menu",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
 
                 NavigationDrawerItem(
                     label = { Text("Panel główny") },
                     selected = true,
-                    onClick = { scope.launch { drawerState.close() } }
+                    onClick = { scope.launch { drawerState.close() } },
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                NavigationDrawerItem(
-                    label = { Text("Ustawienia profilu") },
-                    selected = false,
-                    onClick = { /* TODO: Dodaj nawigację do profilu */ }
-                )
-                NavigationDrawerItem(
-                    label = { Text("Wyloguj się") },
-                    selected = false,
-                    onClick = {
-                        sharedPrefs.edit { putBoolean("REMEMBER_ME", false) }
-                        auth.signOut()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("settings")
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp)
+                    ) {
+                        Text("Ustawienia profilu")
                     }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            sharedPrefs.edit { putBoolean("REMEMBER_ME", false) }
+                            auth.signOut()
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp)
+                    ) {
+                        Text("Wyloguj się")
+                    }
+                }
             }
         }
     ) {
@@ -206,7 +269,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                         )
                     } else {
                         LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             items(viewModel.recentExpenses) { expense ->
                                 ExpenseListItem(expense = expense)

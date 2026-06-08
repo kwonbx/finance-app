@@ -21,6 +21,10 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
         private set
     var isLoading by mutableStateOf(true)
         private set
+    var userName by mutableStateOf("")
+        private set
+    var avatarUrl by mutableStateOf("")
+        private set
 
     init {
         loadData()
@@ -32,6 +36,8 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
 
             val user = userRepository.getUserProfile()
             monthlyLimit = user?.monthlyLimit ?: 0.0
+            userName = user?.name ?: ""
+            avatarUrl = user?.avatarUrl ?: ""
 
             val now = LocalDate.now()
             val firstDayOfMonth = now.withDayOfMonth(1)
@@ -45,24 +51,6 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
             weeklyTotal = currentMonthExpenses.filter { it.dateInMillis >= sevenDaysAgoMillis }.sumOf { it.amount }
             recentExpenses = currentMonthExpenses.take(5)
             isLoading = false
-        }
-    }
-
-    fun addTestData() {
-        val dummyData = listOf(
-            Expense(title = "Biedronka - zakupy domowe", amount = 145.50, type = "Jednorazowy", category = "Jedzenie", dateInMillis = System.currentTimeMillis(), shopName = "Biedronka"),
-            Expense(title = "Netflix", amount = 60.0, type = "Stały", category = "Rozrywka", dateInMillis = System.currentTimeMillis() - 86400000, shopName = "Netflix"), // Wczoraj
-            Expense(title = "Bilet ZTM", amount = 110.0, type = "Stały", category = "Transport", dateInMillis = System.currentTimeMillis() - (86400000 * 3), shopName = "ZTM"), // 3 dni temu
-            Expense(title = "Kawa na uczelni", amount = 15.0, type = "Jednorazowy", category = "Jedzenie", dateInMillis = System.currentTimeMillis() - (86400000 * 5), shopName = "Kawiarnia"), // 5 dni temu
-            Expense(title = "Kino z chłopakiem", amount = 80.0, type = "Jednorazowy", category = "Rozrywka", dateInMillis = System.currentTimeMillis() - (86400000 * 10), shopName = "Multikino") // 10 dni temu
-        )
-
-        isLoading = true
-        viewModelScope.launch {
-            dummyData.forEach { expense ->
-                expenseRepository.addExpense(expense, onSuccess = {}, onFailure = {})
-            }
-            loadData()
         }
     }
 
