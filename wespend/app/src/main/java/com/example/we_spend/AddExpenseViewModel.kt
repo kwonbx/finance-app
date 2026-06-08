@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : ViewModel() {
     var title by mutableStateOf("")
@@ -23,6 +24,8 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
         private set
     var isLoading by mutableStateOf(false)
         private set
+    var expenseDate by mutableStateOf(LocalDate.now())
+        private set
 
     val categories = listOf("Jedzenie", "Transport", "Rozrywka", "Zdrowie", "Rachunki", "Inne")
     fun updateTitle(input: String) { title = input }
@@ -34,21 +37,34 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
         if (input == "Jednorazowy") {
             frequencyDays = ""
             nextPaymentDate = null
+        } else {
+            recalculateNextPaymentDate()
         }
     }
 
     fun updateFrequencyDays(input: String) {
         frequencyDays = input
-        val days = input.toIntOrNull()
-        if (days != null && days > 0) {
-            nextPaymentDate = LocalDate.now().plusDays(days.toLong())
-        } else {
-            nextPaymentDate = null
-        }
+        recalculateNextPaymentDate()
     }
 
     fun updateNextPaymentDate(date: LocalDate) {
         nextPaymentDate = date
+    }
+
+    fun updateExpenseDate(date: LocalDate) {
+        expenseDate = date
+        recalculateNextPaymentDate()
+    }
+
+    private fun recalculateNextPaymentDate() {
+        if (type == "Stały") {
+            val days = frequencyDays.toIntOrNull()
+            if (days != null && days > 0) {
+                nextPaymentDate = expenseDate.plusDays(days.toLong())
+            } else {
+                nextPaymentDate = null
+            }
+        }
     }
 
     fun saveExpense(onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -67,21 +83,19 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
                 onError("Podaj poprawną częstotliwość w dniach")
                 return
             }
-            if (nextPaymentDate == null) {
-                onError("Wybierz datę następnej płatności")
-                return
-            }
             nextDateMillis = nextPaymentDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         }
 
         isLoading = true
+
+        val expenseDateMillis = expenseDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
         val expense = Expense(
             title = title,
             amount = parsedAmount,
             type = type,
             category = category,
-            dateInMillis = System.currentTimeMillis(),
+            dateInMillis = expenseDateMillis,
             frequencyDays = freq,
             nextPaymentDateInMillis = nextDateMillis
         )
@@ -97,6 +111,24 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
                 onError(e.message ?: "Błąd podczas zapisywania")
             }
         )
+    }
+
+    fun onReceiptScanned(shopName: String, scannedAmount: String, scannedDate: String) {
+        if (shopName.isNotBlank()) {
+            title = shopName
+        }
+        if (scannedAmount.isNotBlank()) {
+            amount = scannedAmount
+        }
+
+        if (scannedDate.isNotBlank()) {
+            try {
+                val cleanDate = scannedDate.replace("-", ".")
+                val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+                expenseDate = LocalDate.parse(cleanDate, formatter)
+                recalculateNextPaymentDate()
+            } catch (e: Exception) { }
+        }
     }
 
     class Factory(private val expenseRepository: ExpenseRepository) : ViewModelProvider.Factory {

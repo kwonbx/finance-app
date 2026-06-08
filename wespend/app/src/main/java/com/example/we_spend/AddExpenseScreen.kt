@@ -1,6 +1,10 @@
 package com.example.we_spend
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -25,24 +31,72 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewModel) {
     val context = LocalContext.current
-    var showDatePicker by remember { mutableStateOf(false) }
+    var activeDatePicker by remember { mutableStateOf<String?>(null) }
     val datePickerState = rememberDatePickerState()
     var expandedCategory by remember { mutableStateOf(false) }
+    val receiptScanner = remember { ReceiptScanner() }
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isScanning by remember { mutableStateOf(false) }
 
-    if (showDatePicker) {
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            isScanning = true
+            receiptScanner.scanReceipt(context, uri,
+                onResult = { shop, date, amount ->
+                    viewModel.onReceiptScanned(shop, amount, date)
+                    isScanning = false
+                    Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
+                },
+                onError = {
+                    isScanning = false
+                    Toast.makeText(context, "Błąd skanowania", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success && tempImageUri != null) {
+            isScanning = true
+            receiptScanner.scanReceipt(context, tempImageUri!!,
+                onResult = { shop, date, amount ->
+                    viewModel.onReceiptScanned(shop, amount, date)
+                    isScanning = false
+                    Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
+                },
+                onError = {
+                    isScanning = false
+                    Toast.makeText(context, "Błąd skanowania", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+    }
+
+    fun launchCamera() {
+        val file = File(context.cacheDir, "receipt_image.jpg")
+        tempImageUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        cameraLauncher.launch(tempImageUri!!)
+    }
+
+    if (activeDatePicker != null) {
         DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
+            onDismissRequest = { activeDatePicker = null },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val localDate = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                        viewModel.updateNextPaymentDate(localDate)
+
+                        if (activeDatePicker == "EXPENSE") {
+                            viewModel.updateExpenseDate(localDate)
+                        } else if (activeDatePicker == "NEXT_PAYMENT") {
+                            viewModel.updateNextPaymentDate(localDate)
+                        }
                     }
-                    showDatePicker = false
+                    activeDatePicker = null
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Anuluj") }
+                TextButton(onClick = { activeDatePicker = null }) { Text("Anuluj") }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -69,6 +123,30 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (isScanning) {
+                CircularProgressIndicator()
+                Text("Analizowanie paragonu...", color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(16.dp))
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedButton(onClick = { launchCamera() }, modifier = Modifier.weight(1f)) {
+                        Text("📷 Zrób zdjęcie")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("🖼️ Dodaj z galerii")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             OutlinedTextField(
                 value = viewModel.title,
                 onValueChange = { viewModel.updateTitle(it) },
@@ -87,6 +165,25 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val expenseDateText = viewModel.expenseDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                OutlinedTextField(
+                    value = expenseDateText,
+                    onValueChange = {},
+                    label = { Text("Data wydatku") },
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(onClick = { activeDatePicker = "EXPENSE" }) {
+                            Icon(Icons.Filled.CalendarMonth, contentDescription = "Wybierz datę")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Box(modifier = Modifier.matchParentSize().clickable { activeDatePicker = "EXPENSE" })
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -155,16 +252,10 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                     OutlinedTextField(
                         value = dateText,
                         onValueChange = {},
-                        label = { Text("Następna płatność (możesz zmienić)") },
+                        label = { Text("Następna płatność") },
                         readOnly = true,
-                        trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Filled.CalendarMonth, contentDescription = "Wybierz datę")
-                            }
-                        },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Box(modifier = Modifier.matchParentSize().clickable { showDatePicker = true })
                 }
             }
 
