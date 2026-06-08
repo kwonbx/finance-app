@@ -124,10 +124,16 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
         if (scannedDate.isNotBlank()) {
             try {
                 val cleanDate = scannedDate.replace("-", ".")
-                val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+                val formatter = if (cleanDate.matches("""^\d{4}\..*""".toRegex())) {
+                    DateTimeFormatter.ofPattern("yyyy.MM.dd")
+                } else {
+                    DateTimeFormatter.ofPattern("dd.MM.yyyy")
+                }
+
                 expenseDate = LocalDate.parse(cleanDate, formatter)
                 recalculateNextPaymentDate()
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+            }
         }
     }
 

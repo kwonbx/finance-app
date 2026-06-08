@@ -19,7 +19,7 @@ class ReceiptScanner {
                     val lines = fullText.lines()
 
                     val shopName = lines.firstOrNull { it.isNotBlank() } ?: ""
-                    val dateRegex = """\d{2}[.-]\d{2}[.-]\d{4}""".toRegex()
+                    val dateRegex = """\d{2}[.-]\d{2}[.-]\d{4}|\d{4}[.-]\d{2}[.-]\d{2}""".toRegex()
                     val date = dateRegex.find(fullText)?.value ?: ""
                     var totalAmount = ""
                     val amountRegex = """(\d+[.,]\d{2})""".toRegex()

@@ -1,5 +1,7 @@
 package com.example.we_spend
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,19 +29,32 @@ class MainActivity : ComponentActivity() {
         val userRepository = UserRepository()
         val expenseRepository = ExpenseRepository()
 
+        val sharedPrefs = getSharedPreferences("WeSpendPrefs", Context.MODE_PRIVATE)
+
+        var startDestination = "login"
+        val isRemembered = sharedPrefs.getBoolean("REMEMBER_ME", false)
+
+        if (auth.currentUser != null) {
+            if (isRemembered) {
+                startDestination = "home"
+            } else {
+                auth.signOut()
+            }
+        }
+
         setContent {
             WespendTheme {
-                MyApp(auth, userRepository, expenseRepository)
+                MyApp(auth, userRepository, expenseRepository, sharedPrefs, startDestination)
             }
         }
     }
 }
 
 @Composable
-fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository: ExpenseRepository) {
+fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository: ExpenseRepository, sharedPrefs: SharedPreferences, startDestination: String) {
     val navController = rememberNavController()
 
-    val vmLogin: LoginViewModel = viewModel(factory = LoginViewModel.Factory(auth))
+    val vmLogin: LoginViewModel = viewModel(factory = LoginViewModel.Factory(auth, sharedPrefs))
     val vmRegister: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(auth, userRepository))
     val vmHome: HomeViewModel = viewModel(factory = HomeViewModel.Factory(expenseRepository, userRepository))
     val vmAddExpense: AddExpenseViewModel = viewModel(factory = AddExpenseViewModel.Factory(expenseRepository))
@@ -58,7 +73,7 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
         }
 
         composable("home") {
-            HomeScreen(navController = navController, vmHome)
+            HomeScreen(navController = navController, vmHome, auth, sharedPrefs)
         }
 
         composable("add_expense") {

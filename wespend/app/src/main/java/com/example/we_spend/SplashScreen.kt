@@ -1,5 +1,6 @@
 package com.example.we_spend
 
+import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -23,10 +24,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -35,6 +38,10 @@ fun SplashScreen(navController: NavController) {
     val iconProgress = remember { Animatable(0f) }
     val textAlpha = remember { Animatable(0f) }
     val textOffset = remember { Animatable(20f) }
+
+    val auth = remember { FirebaseAuth.getInstance() }
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("WeSpendPrefs", Context.MODE_PRIVATE) }
 
     LaunchedEffect(Unit) {
         iconProgress.animateTo(
@@ -60,8 +67,16 @@ fun SplashScreen(navController: NavController) {
 
         delay(1500)
 
-        navController.navigate("login") {
-            popUpTo("splash") { inclusive = true }
+        val isRemembered = sharedPrefs.getBoolean("REMEMBER_ME", false)
+
+        if (auth.currentUser != null && isRemembered) {
+            navController.navigate("home") {
+                popUpTo("splash") { inclusive = true }
+            }
+        } else {
+            navController.navigate("login") {
+                popUpTo("splash") { inclusive = true }
+            }
         }
     }
 

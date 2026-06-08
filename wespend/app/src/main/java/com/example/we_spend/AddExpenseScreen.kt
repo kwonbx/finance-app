@@ -32,7 +32,13 @@ import java.time.format.DateTimeFormatter
 fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewModel) {
     val context = LocalContext.current
     var activeDatePicker by remember { mutableStateOf<String?>(null) }
-    val datePickerState = rememberDatePickerState()
+    val datePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis <= System.currentTimeMillis()
+            }
+        }
+    )
     var expandedCategory by remember { mutableStateOf(false) }
     val receiptScanner = remember { ReceiptScanner() }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
