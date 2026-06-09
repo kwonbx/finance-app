@@ -34,6 +34,8 @@ class LoginViewModel(private val auth: FirebaseAuth, private val sharedPrefs: Sh
 
                 if (task.isSuccessful) {
                     sharedPrefs.edit { putBoolean("REMEMBER_ME", rememberMe) }
+                    email = ""
+                    password = ""
                     onSuccess()
                 } else {
                     onError(getPolishAuthErrorMessage(task.exception))

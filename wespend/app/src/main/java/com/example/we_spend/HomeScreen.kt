@@ -48,124 +48,26 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val displayedName = viewModel.userName.ifBlank { "Użytkownik" }
-                    val initial = displayedName.take(1).uppercase()
-
-                    val avatarBitmap = decodeBase64Image(viewModel.avatarUrl)
-
-                    if (avatarBitmap != null) {
-                        androidx.compose.foundation.Image(
-                            bitmap = avatarBitmap,
-                            contentDescription = "Awatar użytkownika",
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = initial,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+            AppDrawerContent(
+                userName = viewModel.userName,
+                avatarUrl = viewModel.avatarUrl,
+                currentRoute = "home",
+                onNavigate = { route -> navController.navigate(route) },
+                onLogout = {
+                    sharedPrefs.edit { putBoolean("REMEMBER_ME", false) }
+                    auth.signOut()
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
                     }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Text(
-                        text = displayedName,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    IconButton(onClick = { scope.launch { drawerState.close() } }) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "Zamknij menu",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(12.dp))
-
-                NavigationDrawerItem(
-                    label = { Text("Panel główny") },
-                    selected = true,
-                    onClick = { scope.launch { drawerState.close() } },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            navController.navigate("settings")
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp)
-                    ) {
-                        Text("Ustawienia profilu")
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = {
-                            sharedPrefs.edit { putBoolean("REMEMBER_ME", false) }
-                            auth.signOut()
-                            navController.navigate("login") {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp)
-                    ) {
-                        Text("Wyloguj się")
-                    }
-                }
-            }
+                },
+                onClose = { scope.launch { drawerState.close() } }
+            )
         }
     ) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("WeSpend", fontWeight = FontWeight.Bold) },
+                    title = { Text("Twoje podsumowanie", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
@@ -181,7 +83,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { navController.navigate("add_expense") },
-                    containerColor = MaterialTheme.colorScheme.tertiary
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = "Dodaj wydatek")
                 }
@@ -263,7 +165,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
 
                     if (viewModel.recentExpenses.isEmpty()) {
                         Text(
-                            text = "Brak wydatków. Naciśnij przycisk +, aby dodać.",
+                            text = "Brak wydatków w tym miesiącu.\nNaciśnij przycisk +, aby dodać.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 16.dp)
                         )
@@ -277,6 +179,29 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                         }
                     }
                 }
+            }
+            if (viewModel.pendingInvitations.isNotEmpty()) {
+                val invitation = viewModel.pendingInvitations.first()
+
+                AlertDialog(
+                    onDismissRequest = {  },
+                    title = { Text("Nowe zaproszenie") },
+                    text = { Text("Zostałeś zaproszony do dołączenia do wspólnych wydatków (Rodzina: ${invitation.familyId}). Czy chcesz dołączyć?") },
+                    confirmButton = {
+                        Button(
+                            onClick = { viewModel.respondToInvite(invitation, true) }
+                        ) {
+                            Text("Akceptuj")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = { viewModel.respondToInvite(invitation, false) }
+                        ) {
+                            Text("Odrzuć")
+                        }
+                    }
+                )
             }
         }
     }
@@ -314,6 +239,12 @@ fun ExpenseListItem(expense: Expense) {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = dateString, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(text = "•", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = expense.type, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Text(
@@ -322,6 +253,126 @@ fun ExpenseListItem(expense: Expense) {
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 16.sp
             )
+        }
+    }
+}
+
+@Composable
+fun AppDrawerContent(
+    userName: String,
+    avatarUrl: String,
+    currentRoute: String,
+    onNavigate: (String) -> Unit,
+    onLogout: () -> Unit,
+    onClose: () -> Unit
+) {
+    ModalDrawerSheet {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val displayedName = userName.ifBlank { "Użytkownik" }
+            val initial = displayedName.take(1).uppercase()
+            val avatarBitmap = decodeBase64Image(avatarUrl)
+
+            if (avatarBitmap != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = avatarBitmap,
+                    contentDescription = "Awatar użytkownika",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initial,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Text(
+                text = displayedName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Zamknij menu",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Twoje podsumowanie") },
+            selected = currentRoute == "home",
+            onClick = {
+                onClose()
+                if (currentRoute != "home") onNavigate("home")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Historia wydatków") },
+            selected = currentRoute == "expenses",
+            onClick = {
+                onClose()
+                if (currentRoute != "expenses") onNavigate("expenses")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            OutlinedButton(
+                onClick = {
+                    onClose()
+                    onNavigate("settings")
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
+            ) {
+                Text("Ustawienia")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onLogout,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
+            ) {
+                Text("Wyloguj się")
+            }
         }
     }
 }

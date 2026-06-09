@@ -14,29 +14,14 @@ class ExpenseRepository {
 
         val documentRef = db.collection("users").document(userId).collection("expenses").document()
 
-        val expenseWithId = expense.copy(id = documentRef.id)
+        val expenseWithId = expense.copy(
+            id = documentRef.id,
+            userId = userId
+        )
 
         documentRef.set(expenseWithId)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onFailure(e) }
-    }
-
-    suspend fun getRecentExpenses(limit: Long = 5): List<Expense> {
-        val userId = auth.currentUser?.uid ?: throw Exception("Brak użytkownika")
-
-        return try {
-            val snapshot = db.collection("users")
-                .document(userId)
-                .collection("expenses")
-                .orderBy("dateInMillis", Query.Direction.DESCENDING)
-                .limit(limit)
-                .get()
-                .await()
-
-            snapshot.toObjects(Expense::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
     }
 
     suspend fun getExpensesFrom(startDateInMillis: Long): List<Expense> {
@@ -52,6 +37,22 @@ class ExpenseRepository {
 
             snapshot.toObjects(Expense::class.java)
         } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getFamilyExpensesFrom(familyId: String, startDateInMillis: Long): List<Expense> {
+        return try {
+            val snapshot = db.collectionGroup("expenses")
+                .whereEqualTo("familyId", familyId)
+                .whereGreaterThanOrEqualTo("dateInMillis", startDateInMillis)
+                .orderBy("dateInMillis", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            snapshot.toObjects(Expense::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
             emptyList()
         }
     }

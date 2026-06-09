@@ -5,11 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : ViewModel() {
+class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, private val userRepository: UserRepository) : ViewModel() {
     var title by mutableStateOf("")
         private set
     var amount by mutableStateOf("")
@@ -88,31 +90,36 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
 
         isLoading = true
 
-        val expenseDateMillis = expenseDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        viewModelScope.launch {
+            val userProfile = userRepository.getUserProfile()
+            val currentFamilyId = userProfile?.familyId
 
-        val expense = Expense(
-            title = title,
-            amount = parsedAmount,
-            type = type,
-            category = category,
-            dateInMillis = expenseDateMillis,
-            frequencyDays = freq,
-            nextPaymentDateInMillis = nextDateMillis
-        )
+            val expenseDateMillis = expenseDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-        expenseRepository.addExpense(
-            expense = expense,
-            onSuccess = {
-                isLoading = false
-                onSuccess()
-            },
-            onFailure = { e ->
-                isLoading = false
-                onError(e.message ?: "Błąd podczas zapisywania")
-            }
-        )
+            val expense = Expense(
+                title = title,
+                amount = parsedAmount,
+                type = type,
+                category = category,
+                dateInMillis = expenseDateMillis,
+                frequencyDays = freq,
+                nextPaymentDateInMillis = nextDateMillis,
+                familyId = currentFamilyId
+            )
+
+            expenseRepository.addExpense(
+                expense = expense,
+                onSuccess = {
+                    isLoading = false
+                    onSuccess()
+                },
+                onFailure = { e ->
+                    isLoading = false
+                    onError(e.message ?: "Błąd podczas zapisywania")
+                }
+            )
+        }
     }
-
     fun onReceiptScanned(shopName: String, scannedAmount: String, scannedDate: String) {
         if (shopName.isNotBlank()) {
             title = shopName
@@ -137,11 +144,11 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository) : Vi
         }
     }
 
-    class Factory(private val expenseRepository: ExpenseRepository) : ViewModelProvider.Factory {
+    class Factory(private val expenseRepository: ExpenseRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(AddExpenseViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return AddExpenseViewModel(expenseRepository) as T
+                return AddExpenseViewModel(expenseRepository, userRepository) as T
             }
             throw IllegalArgumentException("Nieznana klasa ViewModelu")
         }

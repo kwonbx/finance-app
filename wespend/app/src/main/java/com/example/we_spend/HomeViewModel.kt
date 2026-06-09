@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -25,6 +27,9 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
         private set
     var avatarUrl by mutableStateOf("")
         private set
+    var pendingInvitations by mutableStateOf<List<Invitation>>(emptyList())
+        private set
+    private var invitationListener: ListenerRegistration? = null
 
     init {
         loadData()
@@ -38,6 +43,11 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
             monthlyLimit = user?.monthlyLimit ?: 0.0
             userName = user?.name ?: ""
             avatarUrl = user?.avatarUrl ?: ""
+            val userEmail = user?.email ?: ""
+
+            if (userEmail.isNotEmpty()) {
+                startListeningForInvitations(userEmail)
+            }
 
             val now = LocalDate.now()
             val firstDayOfMonth = now.withDayOfMonth(1)
@@ -52,6 +62,68 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
             recentExpenses = currentMonthExpenses.take(5)
             isLoading = false
         }
+    }
+
+    private fun startListeningForInvitations(email: String) {
+        invitationListener?.remove()
+
+        invitationListener = listenForPendingInvitations(
+            currentUserEmail = email,
+            onUpdate = { invitations ->
+                pendingInvitations = invitations
+            },
+            onError = { error ->
+                println("Błąd nasłuchiwania: $error")
+            }
+        )
+    }
+
+    fun listenForPendingInvitations(
+        currentUserEmail: String,
+        onUpdate: (List<Invitation>) -> Unit,
+        onError: (String) -> Unit
+    ): ListenerRegistration {
+        val db = FirebaseFirestore.getInstance()
+
+        return db.collection("invitations")
+            .whereEqualTo("toEmail", currentUserEmail)
+            .whereEqualTo("status", "pending")
+            .addSnapshotListener { snapshot, exception ->
+                if (exception != null) {
+                    onError("Błąd nasłuchiwania: ${exception.message}")
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val invitations = snapshot.toObjects(Invitation::class.java)
+                    onUpdate(invitations)
+                }
+            }
+    }
+
+    fun respondToInvite(invitation: Invitation, accept: Boolean) {
+        isLoading = true
+        userRepository.respondToInvitation(
+            invitationId = invitation.id,
+            familyId = invitation.familyId,
+            accept = accept,
+            onSuccess = {
+                if (accept) {
+                    loadData()
+                } else {
+                    isLoading = false
+                }
+            },
+            onError = { error ->
+                isLoading = false
+                println("Błąd odpowiedzi na zaproszenie: $error")
+            }
+        )
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        invitationListener?.remove()
     }
 
     class Factory(

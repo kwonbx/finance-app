@@ -7,7 +7,8 @@ data class Expense(
     val type: String = "",
     val category: String = "",
     val dateInMillis: Long = 0L,
-    val shopName: String = "",
     val frequencyDays: Int? = null,
-    val nextPaymentDateInMillis: Long? = null
+    val nextPaymentDateInMillis: Long? = null,
+    val userId: String = "",
+    val familyId: String? = null
 )

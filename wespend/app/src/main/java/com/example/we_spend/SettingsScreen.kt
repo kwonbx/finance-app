@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -53,7 +54,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ustawienia profilu") },
+                title = { Text("Ustawienia") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
@@ -113,7 +114,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Zmień zdjęcie", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Zmień zdjęcie profilowe", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -225,6 +226,30 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                     }
                 }
             }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                onClick = { navController.navigate("family_management") }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Zarządzanie rodziną", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Zaproś bliskich i współdziel wydatki", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Przejdź do rodziny"
+                    )
+                }
+            }
         }
     }
 }
@@ -232,7 +257,6 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
 fun decodeBase64Image(base64String: String): ImageBitmap? {
     if (base64String.isBlank()) return null
     return try {
-        // Odcinamy nagłówek "data:image/jpeg;base64,"
         val cleanImage = if (base64String.contains(",")) {
             base64String.split(",")[1]
         } else {

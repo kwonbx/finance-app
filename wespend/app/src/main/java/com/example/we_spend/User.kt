@@ -6,5 +6,6 @@ data class User(
     val email: String = "",
     val dateOfBirth: String = "",
     val monthlyLimit: Double = 0.0,
-    val avatarUrl: String = ""
+    val avatarUrl: String = "",
+    val familyId: String? = null
 )

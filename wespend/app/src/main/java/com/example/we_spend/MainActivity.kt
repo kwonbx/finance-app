@@ -57,8 +57,10 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
     val vmLogin: LoginViewModel = viewModel(factory = LoginViewModel.Factory(auth, sharedPrefs))
     val vmRegister: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(auth, userRepository))
     val vmHome: HomeViewModel = viewModel(factory = HomeViewModel.Factory(expenseRepository, userRepository))
-    val vmAddExpense: AddExpenseViewModel = viewModel(factory = AddExpenseViewModel.Factory(expenseRepository))
+    val vmAddExpense: AddExpenseViewModel = viewModel(factory = AddExpenseViewModel.Factory(expenseRepository, userRepository))
     val vmSettings: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(auth, userRepository))
+    val vmFamily: FamilyViewModel = viewModel(factory = FamilyViewModel.Factory(userRepository))
+    val vmExpenses: ExpensesViewModel = viewModel(factory = ExpensesViewModel.Factory(expenseRepository, userRepository))
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -83,6 +85,14 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
 
         composable("settings") {
             SettingsScreen(navController = navController, viewModel = vmSettings)
+        }
+
+        composable("family_management") {
+            FamilyScreen(navController = navController, vmFamily)
+        }
+
+        composable("expenses") {
+            ExpensesScreen(navController, vmExpenses, auth, sharedPrefs)
         }
     }
 }

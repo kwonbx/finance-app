@@ -102,7 +102,7 @@ fun RegisterScreen(navController: NavController, viewModel: RegisterViewModel) {
         OutlinedTextField(
             value = viewModel.name,
             onValueChange = { viewModel.updateName(it)},
-            label = { Text("Imię") },
+            label = { Text("Nazwa użytkownika") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
