@@ -39,6 +39,8 @@ class HomeViewModel(private val expenseRepository: ExpenseRepository, private va
         viewModelScope.launch {
             isLoading = true
 
+            expenseRepository.processRecurringExpenses()
+
             val user = userRepository.getUserProfile()
             monthlyLimit = user?.monthlyLimit ?: 0.0
             userName = user?.name ?: ""

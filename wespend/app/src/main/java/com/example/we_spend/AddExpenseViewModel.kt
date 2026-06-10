@@ -76,48 +76,83 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
             return
         }
 
-        var freq: Int? = null
-        var nextDateMillis: Long? = null
-
-        if (type == "Stały") {
-            freq = frequencyDays.toIntOrNull()
-            if (freq == null || freq <= 0) {
-                onError("Podaj poprawną częstotliwość w dniach")
-                return
-            }
-            nextDateMillis = nextPaymentDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        }
-
         isLoading = true
 
         viewModelScope.launch {
             val userProfile = userRepository.getUserProfile()
             val currentFamilyId = userProfile?.familyId
-
             val expenseDateMillis = expenseDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-            val expense = Expense(
-                title = title,
-                amount = parsedAmount,
-                type = type,
-                category = category,
-                dateInMillis = expenseDateMillis,
-                frequencyDays = freq,
-                nextPaymentDateInMillis = nextDateMillis,
-                familyId = currentFamilyId
-            )
+            if (type == "Jednorazowy") {
+                val expense = Expense(
+                    title = title,
+                    amount = parsedAmount,
+                    type = type,
+                    category = category,
+                    dateInMillis = expenseDateMillis,
+                    familyId = currentFamilyId
+                )
 
-            expenseRepository.addExpense(
-                expense = expense,
-                onSuccess = {
+                expenseRepository.addExpense(
+                    expense = expense,
+                    onSuccess = {
+                        isLoading = false
+                        title = ""
+                        amount = ""
+                        type = "Jednorazowy"
+                        category = "Jedzenie"
+                        onSuccess()
+                    },
+                    onFailure = { e ->
+                        isLoading = false
+                        onError(e.message ?: "Błąd podczas zapisywania")
+                    }
+                )
+            } else {
+                val freq = frequencyDays.toIntOrNull()
+                if (freq == null || freq <= 0) {
                     isLoading = false
-                    onSuccess()
-                },
-                onFailure = { e ->
-                    isLoading = false
-                    onError(e.message ?: "Błąd podczas zapisywania")
+                    onError("Podaj poprawną częstotliwość w dniach")
+                    return@launch
                 }
-            )
+                val nextDateMillis = nextPaymentDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                val recurringTemplate = RecurringExpense(
+                    title = title,
+                    amount = parsedAmount,
+                    category = category,
+                    frequencyDays = freq,
+                    nextPaymentDateInMillis = nextDateMillis,
+                    familyId = currentFamilyId,
+                    isActive = true
+                )
+
+                val initialExpenseInstance = Expense(
+                    title = title,
+                    amount = parsedAmount,
+                    type = "Stały",
+                    category = category,
+                    dateInMillis = expenseDateMillis,
+                    familyId = currentFamilyId
+                )
+
+                expenseRepository.addRecurringExpenseWithInitialInstance(
+                    recurring = recurringTemplate,
+                    initialExpense = initialExpenseInstance,
+                    onSuccess = {
+                        isLoading = false
+                        title = ""
+                        amount = ""
+                        type = "Jednorazowy"
+                        category = "Jedzenie"
+                        onSuccess()
+                    },
+                    onFailure = { e ->
+                        isLoading = false
+                        onError(e.message ?: "Błąd podczas zapisywania opłaty stałej")
+                    }
+                )
+            }
         }
     }
     fun onReceiptScanned(shopName: String, scannedAmount: String, scannedDate: String) {

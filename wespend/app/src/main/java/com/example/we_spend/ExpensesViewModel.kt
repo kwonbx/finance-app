@@ -38,6 +38,10 @@ class ExpensesViewModel(
     var avatarUrl by mutableStateOf("")
         private set
 
+    // NOWA ZMIENNA: Przechowuje aktualny tekst wpisany w wyszukiwarkę
+    var searchQuery by mutableStateOf("")
+        private set
+
     private var currentUserId: String = ""
     private var currentUserFamilyId: String? = null
 
@@ -46,6 +50,8 @@ class ExpensesViewModel(
     fun loadData() {
         viewModelScope.launch {
             isLoading = true
+
+            expenseRepository.processRecurringExpenses()
 
             allFetchedExpenses = emptyList()
             familyMembers = emptyList()
@@ -98,8 +104,14 @@ class ExpensesViewModel(
             val matchesCategory = selectedCategories.isEmpty() || selectedCategories.contains(expense.category)
             val matchesUser = !isFamilyView || selectedUsers.isEmpty() || selectedUsers.contains(expense.userId)
 
-            matchesType && matchesCategory && matchesUser
+            val matchesSearch = expense.title.contains(searchQuery, ignoreCase = true)
+
+            matchesType && matchesCategory && matchesUser && matchesSearch
         }
+    }
+
+    fun updateSearchQuery(query: String) {
+        searchQuery = query
     }
 
     fun toggleFamilyView(showFamily: Boolean) {
@@ -135,6 +147,21 @@ class ExpensesViewModel(
 
     fun setExpenseType(type: String) {
         selectedExpenseType = type
+    }
+
+    fun deleteExpense(expense: Expense, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        isLoading = true
+        expenseRepository.deleteExpense(
+            expense = expense,
+            onSuccess = {
+                fetchExpensesFromDatabase()
+                onSuccess()
+            },
+            onFailure = {
+                isLoading = false
+                onError(it.message ?: "Błąd podczas usuwania wydatku")
+            }
+        )
     }
 
     class Factory(

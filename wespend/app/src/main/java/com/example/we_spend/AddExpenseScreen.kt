@@ -251,18 +251,20 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    val dateText = viewModel.nextPaymentDate?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: ""
-                    OutlinedTextField(
-                        value = dateText,
-                        onValueChange = {},
-                        label = { Text("Następna płatność") },
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth()
+                val dateText = viewModel.nextPaymentDate?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+
+                if (!dateText.isNullOrEmpty()) {
+                    Text(
+                        text = "Następna płatność: $dateText",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             Spacer(modifier = Modifier.height(32.dp))

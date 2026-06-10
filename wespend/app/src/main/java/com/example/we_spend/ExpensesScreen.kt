@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -30,11 +34,15 @@ fun ExpensesScreen(
     sharedPrefs: SharedPreferences
 ) {
     var showFilterSheet by remember { mutableStateOf(false) }
+    var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+
+    LaunchedEffect(navBackStackEntry) {
         viewModel.loadData()
     }
 
@@ -99,6 +107,31 @@ fun ExpensesScreen(
                 val periods = listOf(30 to "Ostatnie 30 dni", 60 to "Ostatnie 60 dni", 180 to "Ostatnie pół roku", 360 to "Ostatni rok", null to "Wszystkie dotychczasowe")
                 val selectedLabel = periods.find { it.first == viewModel.timePeriodDays }?.second ?: "Wszystkie dotychczasowe"
 
+                OutlinedTextField(
+                    value = viewModel.searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                    placeholder = { Text("Szukaj wydatku...") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Ikona wyszukiwania")
+                    },
+                    trailingIcon = {
+                        if (viewModel.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Wyczyść wyszukiwanie")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -142,7 +175,13 @@ fun ExpensesScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(viewModel.filteredExpenses) { expense ->
-                            ExpenseListItem(expense = expense)
+                            ExpenseListItem(
+                                expense = expense,
+                                onDeleteClick = { expenseToDelete = expense },
+                                onRecurringClick = {
+                                    navController.navigate("edit_recurring/${expense.recurringExpenseId}")
+                                }
+                            )
                         }
                     }
                 }
@@ -255,6 +294,41 @@ fun ExpensesScreen(
                     }
                 }
             }
+        }
+
+        if (expenseToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { expenseToDelete = null },
+                title = { Text("Usuń wydatek", fontWeight = FontWeight.Bold) },
+                text = { Text("Czy na pewno chcesz usunąć ten wydatek? Ta akcja jest nieodwracalna.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val exp = expenseToDelete
+                            expenseToDelete = null
+                            if (exp != null) {
+                                viewModel.deleteExpense(
+                                    expense = exp,
+                                    onSuccess = {
+                                        android.widget.Toast.makeText(context, "Usunięto wydatek", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    onError = {
+                                        android.widget.Toast.makeText(context, "Błąd: $it", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Usuń")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { expenseToDelete = null }) {
+                        Text("Anuluj")
+                    }
+                }
+            )
         }
     }
 }

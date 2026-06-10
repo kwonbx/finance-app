@@ -2,6 +2,7 @@ package com.example.we_spend
 
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,12 +11,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -41,7 +45,9 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+
+    LaunchedEffect(navBackStackEntry) {
         viewModel.loadData()
     }
 
@@ -208,51 +214,93 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
 }
 
 @Composable
-fun ExpenseListItem(expense: Expense) {
+fun ExpenseListItem(
+    expense: Expense,
+    onDeleteClick: (() -> Unit)? = null,
+    onRecurringClick: (() -> Unit)? = null
+) {
     val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
     val dateString = sdf.format(Date(expense.dateInMillis))
 
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isMyExpense = currentUserId == expense.userId
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = expense.recurringExpenseId != null && onRecurringClick != null) {
+            onRecurringClick?.invoke()
+        },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = expense.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = expense.title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                )
+                Text(
+                    text = String.format("-%.2f zł", expense.amount),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 16.sp
+                )
+            }
+
+            HorizontalDivider()
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Box(
                         modifier = Modifier
-                            .width(80.dp)
                             .background(MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(4.dp))
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = expense.category, fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = dateString, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
                     Spacer(modifier = Modifier.width(6.dp))
-
                     Text(text = "•", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(text = expense.type, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+
+                if (isMyExpense && onDeleteClick != null) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .offset(x = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Usuń",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
-            Text(
-                text = String.format("-%.2f zł", expense.amount),
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 16.sp
-            )
         }
     }
 }

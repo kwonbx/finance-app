@@ -61,6 +61,7 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
     val vmSettings: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(auth, userRepository))
     val vmFamily: FamilyViewModel = viewModel(factory = FamilyViewModel.Factory(userRepository))
     val vmExpenses: ExpensesViewModel = viewModel(factory = ExpensesViewModel.Factory(expenseRepository, userRepository))
+    val editViewModel: EditRecurringViewModel = viewModel(factory = EditRecurringViewModel.Factory(expenseRepository))
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -93,6 +94,11 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
 
         composable("expenses") {
             ExpensesScreen(navController, vmExpenses, auth, sharedPrefs)
+        }
+
+        composable("edit_recurring/{recurringId}") { backStackEntry ->
+            val recurringId = backStackEntry.arguments?.getString("recurringId") ?: ""
+            EditRecurringScreen(navController, editViewModel, recurringId)
         }
     }
 }

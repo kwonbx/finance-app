@@ -54,7 +54,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ustawienia") },
+                title = { Text("Ustawienia", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
