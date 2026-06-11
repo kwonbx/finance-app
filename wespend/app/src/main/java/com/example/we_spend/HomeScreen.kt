@@ -16,10 +16,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +39,7 @@ import java.util.Locale
 fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: FirebaseAuth, sharedPrefs: SharedPreferences) {
     val remainingLimit = viewModel.monthlyLimit - viewModel.monthlyTotal
     val isOverLimit = remainingLimit < 0
+    val totalBalance = viewModel.monthlyRevenue - viewModel.monthlyTotal
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -87,11 +85,20 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { navController.navigate("add_expense") },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Dodaj wydatek")
+                Column(horizontalAlignment = Alignment.End) {
+                    FloatingActionButton(
+                        onClick = { navController.navigate("add_revenue") },
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Filled.Add, contentDescription = "Dodaj przychód")
+                    }
+                    FloatingActionButton(
+                        onClick = { navController.navigate("add_expense") },
+                        containerColor = MaterialTheme.colorScheme.error
+                    ) {
+                        Icon(imageVector = Icons.Filled.Add, contentDescription = "Dodaj wydatek")
+                    }
                 }
             }
         ) { paddingValues ->
@@ -113,15 +120,27 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(text = "Ten miesiąc", style = MaterialTheme.typography.titleMedium)
+                            Text(text = "Bilans w tym miesiącu", style = MaterialTheme.typography.titleMedium)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = String.format("%.2f zł", viewModel.monthlyTotal),
+                                text = String.format("%.2f zł", totalBalance),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = if (totalBalance >= 0) Color(0xFF388E3C) else MaterialTheme.colorScheme.error
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column {
+                                    Text(text = "Przychody", style = MaterialTheme.typography.bodySmall)
+                                    Text(text = String.format("+%.2f zł", viewModel.monthlyRevenue), color = Color(0xFF388E3C), fontWeight = FontWeight.Bold)
+                                }
+                                Column {
+                                    Text(text = "Wydatki", style = MaterialTheme.typography.bodySmall)
+                                    Text(text = String.format("-%.2f zł", viewModel.monthlyTotal), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             if (viewModel.monthlyLimit > 0) {
                                 if (isOverLimit) {
@@ -156,7 +175,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Ostatnie 7 dni:", fontWeight = FontWeight.SemiBold)
+                            Text(text = "Wydatki (ostatnie 7 dni):", fontWeight = FontWeight.SemiBold)
                             Text(
                                 text = String.format("%.2f zł", viewModel.weeklyTotal),
                                 fontWeight = FontWeight.Bold,
@@ -166,21 +185,47 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text(text = "Ostatnie wydatki", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    var selectedTab by remember { mutableStateOf(0) }
+                    TabRow(selectedTabIndex = selectedTab, containerColor = Color.Transparent) {
+                        Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
+                            Text("Wydatki", modifier = Modifier.padding(8.dp))
+                        }
+                        Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
+                            Text("Przychody", modifier = Modifier.padding(8.dp))
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (viewModel.recentExpenses.isEmpty()) {
-                        Text(
-                            text = "Brak wydatków w tym miesiącu.\nNaciśnij przycisk +, aby dodać.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 16.dp)
-                        )
+                    if (selectedTab == 0) {
+                        if (viewModel.recentExpenses.isEmpty()) {
+                            Text(
+                                text = "Brak wydatków w tym miesiącu.\nNaciśnij przycisk +, aby dodać.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 16.dp)
+                            )
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                items(viewModel.recentExpenses) { expense ->
+                                    ExpenseListItem(expense = expense)
+                                }
+                            }
+                        }
                     } else {
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            items(viewModel.recentExpenses) { expense ->
-                                ExpenseListItem(expense = expense)
+                        if (viewModel.recentRevenues.isEmpty()) {
+                            Text(
+                                text = "Brak przychodów w tym miesiącu.\nNaciśnij przycisk +, aby dodać.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 16.dp)
+                            )
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                items(viewModel.recentRevenues) { revenue ->
+                                    RevenueListItem(revenue = revenue)
+                                }
                             }
                         }
                     }
@@ -271,7 +316,7 @@ fun ExpenseListItem(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.error, shape = RoundedCornerShape(4.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -286,6 +331,98 @@ fun ExpenseListItem(
                 }
 
                 if (isMyExpense && onDeleteClick != null) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .offset(x = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Usuń",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RevenueListItem(
+    revenue: Revenue,
+    onDeleteClick: (() -> Unit)? = null,
+    onRecurringClick: (() -> Unit)? = null
+) {
+    val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+    val dateString = sdf.format(Date(revenue.dateInMillis))
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isMyRevenue = currentUserId == revenue.userId
+
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(enabled = revenue.recurringRevenueId != null && onRecurringClick != null) {
+            onRecurringClick?.invoke()
+        },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = revenue.title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                )
+                Text(
+                    text = String.format("+%.2f zł", revenue.amount),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF388E3C),
+                    fontSize = 16.sp
+                )
+            }
+
+            HorizontalDivider()
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = revenue.category, fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = dateString, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "•", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = revenue.type, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                if (isMyRevenue && onDeleteClick != null) {
                     IconButton(
                         onClick = onDeleteClick,
                         modifier = Modifier
@@ -389,6 +526,18 @@ fun AppDrawerContent(
             onClick = {
                 onClose()
                 if (currentRoute != "expenses") onNavigate("expenses")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Historia przychodów") },
+            selected = currentRoute == "revenues",
+            onClick = {
+                onClose()
+                if (currentRoute != "revenues") onNavigate("revenues")
             },
             modifier = Modifier.padding(horizontal = 16.dp)
         )

@@ -1,6 +1,7 @@
 package com.example.we_spend
 
 import android.content.ContentResolver
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -17,7 +18,11 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
-class SettingsViewModel(private val auth: FirebaseAuth, private val userRepository: UserRepository) : ViewModel() {
+class SettingsViewModel(
+    private val auth: FirebaseAuth,
+    private val userRepository: UserRepository,
+    private val sharedPreferences: SharedPreferences
+) : ViewModel() {
     var userName by mutableStateOf("")
         private set
     var monthlyLimit by mutableStateOf("")
@@ -36,6 +41,14 @@ class SettingsViewModel(private val auth: FirebaseAuth, private val userReposito
         private set
     var isAvatarLoading by mutableStateOf(false)
         private set
+
+    var isDarkMode by mutableStateOf(sharedPreferences.getBoolean("DARK_MODE", false))
+        private set
+
+    fun toggleDarkMode(enabled: Boolean) {
+        isDarkMode = enabled
+        sharedPreferences.edit().putBoolean("DARK_MODE", enabled).apply()
+    }
 
     fun updateUserNameInput(input: String) { userName = input }
     fun updateMonthlyLimitInput(input: String) { monthlyLimit = input }
@@ -180,12 +193,13 @@ class SettingsViewModel(private val auth: FirebaseAuth, private val userReposito
 
     class Factory(
         private val auth: FirebaseAuth,
-        private val userRepository: UserRepository
+        private val userRepository: UserRepository,
+        private val sharedPreferences: SharedPreferences
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return SettingsViewModel(auth, userRepository) as T
+                return SettingsViewModel(auth, userRepository, sharedPreferences) as T
             }
             throw IllegalArgumentException("Nieznana klasa ViewModelu")
         }
