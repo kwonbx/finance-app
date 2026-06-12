@@ -82,6 +82,7 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
     val vmExpenses: ExpensesViewModel = viewModel(factory = ExpensesViewModel.Factory(expenseRepository, userRepository))
     val vmRevenues: RevenuesViewModel = viewModel(factory = RevenuesViewModel.Factory(revenueRepository, userRepository))
     val editViewModel: EditRecurringViewModel = viewModel(factory = EditRecurringViewModel.Factory(expenseRepository))
+    val editRevenueViewModel: EditRecurringRevenueViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = EditRecurringRevenueViewModel.Factory(revenueRepository))
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -127,6 +128,11 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
         composable("edit_recurring/{recurringId}") { backStackEntry ->
             val recurringId = backStackEntry.arguments?.getString("recurringId") ?: ""
             EditRecurringScreen(navController, editViewModel, recurringId)
+        }
+
+        composable("edit_recurring_revenue/{recurringId}") { backStackEntry ->
+            val recurringId = backStackEntry.arguments?.getString("recurringId") ?: ""
+            EditRecurringRevenueScreen(navController, editRevenueViewModel, recurringId)
         }
     }
 }

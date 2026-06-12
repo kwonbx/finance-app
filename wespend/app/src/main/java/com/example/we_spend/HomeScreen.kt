@@ -46,7 +46,9 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     LaunchedEffect(navBackStackEntry) {
-        viewModel.loadData()
+        if (navBackStackEntry?.destination?.route == "home") {
+            viewModel.loadData()
+        }
     }
 
     ModalNavigationDrawer(

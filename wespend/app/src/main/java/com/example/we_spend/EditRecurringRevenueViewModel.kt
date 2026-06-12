@@ -11,7 +11,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) : ViewModel() {
+class EditRecurringRevenueViewModel(private val revenueRepository: RevenueRepository) : ViewModel() {
     var id by mutableStateOf("")
         private set
     var title by mutableStateOf("")
@@ -32,10 +32,10 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
     private var baseDate: LocalDate? = null
     private var currentNextDateMillis: Long = 0L
 
-    fun loadRecurringExpense(recurringId: String) {
+    fun loadRecurringRevenue(recurringId: String) {
         if (id == recurringId) return
         isLoading = true
-        expenseRepository.getRecurringExpense(
+        revenueRepository.getRecurringRevenue(
             recurringId = recurringId,
             onSuccess = { recurring ->
                 if (recurring != null) {
@@ -46,7 +46,6 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
                     frequencyDays = recurring.frequencyDays.toString()
                     isActive = recurring.isActive
 
-                    // Obliczenie daty bazowej (ostatniej płatności)
                     val nextDate = Instant.ofEpochMilli(recurring.nextPaymentDateInMillis).atZone(ZoneId.systemDefault()).toLocalDate()
                     baseDate = nextDate.minusDays(recurring.frequencyDays.toLong())
                     currentNextDateMillis = recurring.nextPaymentDateInMillis
@@ -90,11 +89,11 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
         }
 
         isLoading = true
-        expenseRepository.updateRecurringExpense(
+        revenueRepository.updateRecurringRevenue(
             recurringId = id,
             newAmount = parsedAmount,
             newFrequency = parsedFreq,
-            newNextDateMillis = currentNextDateMillis, // Zapis nowej daty
+            newNextDateMillis = currentNextDateMillis,
             onSuccess = {
                 isLoading = false
                 onSuccess()
@@ -108,7 +107,7 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
 
     fun stopRenewing(onSuccess: () -> Unit, onError: (String) -> Unit) {
         isLoading = true
-        expenseRepository.deactivateRecurringExpense(
+        revenueRepository.deactivateRecurringRevenue(
             recurringId = id,
             onSuccess = {
                 isActive = false
@@ -122,11 +121,11 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
         )
     }
 
-    class Factory(private val expenseRepository: ExpenseRepository) : ViewModelProvider.Factory {
+    class Factory(private val revenueRepository: RevenueRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(EditRecurringViewModel::class.java)) {
+            if (modelClass.isAssignableFrom(EditRecurringRevenueViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return EditRecurringViewModel(expenseRepository) as T
+                return EditRecurringRevenueViewModel(revenueRepository) as T
             }
             throw IllegalArgumentException("Nieznana klasa ViewModelu")
         }

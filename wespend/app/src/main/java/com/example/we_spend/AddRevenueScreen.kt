@@ -27,7 +27,13 @@ import java.time.format.DateTimeFormatter
 fun AddRevenueScreen(navController: NavController, viewModel: AddRevenueViewModel) {
     val context = LocalContext.current
     var activeDatePicker by remember { mutableStateOf<String?>(null) }
-    val datePickerState = rememberDatePickerState()
+    val datePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis <= System.currentTimeMillis()
+            }
+        }
+    )
     var expandedCategory by remember { mutableStateOf(false) }
 
     if (activeDatePicker != null) {

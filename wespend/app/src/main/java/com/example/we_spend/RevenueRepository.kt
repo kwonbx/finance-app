@@ -176,13 +176,14 @@ class RevenueRepository {
             .addOnFailureListener { onFailure(it) }
     }
 
-    fun updateRecurringRevenue(recurringId: String, newAmount: Double, newFrequency: Int, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+    fun updateRecurringRevenue(recurringId: String, newAmount: Double, newFrequency: Int, newNextDateMillis: Long, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
         db.collection("users").document(userId)
             .collection("recurring_revenues").document(recurringId)
             .update(mapOf(
                 "amount" to newAmount,
-                "frequencyDays" to newFrequency
+                "frequencyDays" to newFrequency,
+                "nextPaymentDateInMillis" to newNextDateMillis
             ))
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onFailure(it) }

@@ -43,7 +43,9 @@ fun RevenuesScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     LaunchedEffect(navBackStackEntry) {
-        viewModel.loadData()
+        if (navBackStackEntry?.destination?.route == "revenues") {
+            viewModel.loadData()
+        }
     }
 
     ModalNavigationDrawer(
@@ -179,7 +181,7 @@ fun RevenuesScreen(
                                 revenue = revenue,
                                 onDeleteClick = { revenueToDelete = revenue },
                                 onRecurringClick = {
-                                    navController.navigate("edit_recurring/${revenue.recurringRevenueId}")
+                                    navController.navigate("edit_recurring_revenue/${revenue.recurringRevenueId}")
                                 }
                             )
                         }

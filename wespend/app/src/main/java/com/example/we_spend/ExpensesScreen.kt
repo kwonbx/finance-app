@@ -43,7 +43,9 @@ fun ExpensesScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     LaunchedEffect(navBackStackEntry) {
-        viewModel.loadData()
+        if (navBackStackEntry?.destination?.route == "expenses") {
+            viewModel.loadData()
+        }
     }
 
     ModalNavigationDrawer(
