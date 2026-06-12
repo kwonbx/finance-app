@@ -320,7 +320,7 @@ fun ExpenseListItem(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = expense.category, fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
+                        Text(text = expense.category, fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = dateString, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -412,7 +412,7 @@ fun RevenueListItem(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = revenue.category, fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
+                        Text(text = revenue.category, fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = dateString, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
