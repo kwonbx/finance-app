@@ -42,12 +42,15 @@ class SettingsViewModel(
     var isAvatarLoading by mutableStateOf(false)
         private set
 
-    var isDarkMode by mutableStateOf(sharedPreferences.getBoolean("DARK_MODE", false))
+    var themeMode by mutableStateOf(sharedPreferences.getString("THEME_MODE", "system") ?: "system")
         private set
 
-    fun toggleDarkMode(enabled: Boolean) {
-        isDarkMode = enabled
-        sharedPreferences.edit().putBoolean("DARK_MODE", enabled).apply()
+    fun updateThemeMode(mode: String) {
+        themeMode = mode
+        sharedPreferences.edit().putString("THEME_MODE", mode).apply()
+        
+        // Sync to Firebase
+        userRepository.updateUserTheme(mode, onSuccess = {}, onFailure = {})
     }
 
     fun updateUserNameInput(input: String) { userName = input }

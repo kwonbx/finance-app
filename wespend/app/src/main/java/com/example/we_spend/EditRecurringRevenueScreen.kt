@@ -6,8 +6,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,17 +56,44 @@ fun EditRecurringRevenueScreen(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = viewModel.title.ifBlank { "Stały wpływ" },
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                OutlinedTextField(
+                    value = viewModel.title,
+                    onValueChange = { viewModel.updateTitle(it) },
+                    label = { Text("Tytuł") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
 
-                Text(
-                    text = "Kategoria: ${viewModel.category}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                var expandedCategory by remember { mutableStateOf(false) }
+                val categories = listOf("Wynagrodzenie", "Premia", "Prezent", "Inwestycje", "Sprzedaż", "Inne")
+
+                ExposedDropdownMenuBox(
+                    expanded = expandedCategory,
+                    onExpandedChange = { expandedCategory = !expandedCategory }
+                ) {
+                    OutlinedTextField(
+                        value = viewModel.category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Kategoria") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategory,
+                        onDismissRequest = { expandedCategory = false }
+                    ) {
+                        categories.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    viewModel.updateCategory(selectionOption)
+                                    expandedCategory = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 

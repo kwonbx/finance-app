@@ -180,8 +180,8 @@ fun RevenuesScreen(
                             RevenueListItem(
                                 revenue = revenue,
                                 onDeleteClick = { revenueToDelete = revenue },
-                                onRecurringClick = {
-                                    navController.navigate("edit_recurring_revenue/${revenue.recurringRevenueId}")
+                                onClick = {
+                                    navController.navigate("edit_revenue/${revenue.id}")
                                 }
                             )
                         }

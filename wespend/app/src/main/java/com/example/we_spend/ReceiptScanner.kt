@@ -9,16 +9,18 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 class ReceiptScanner {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    fun scanReceipt(context: Context, imageUri: Uri, onResult: (String, String, String) -> Unit, onError: (Exception) -> Unit) {
+    fun scanReceipt(context: Context, imageUri: Uri, onResult: (String, String, String, String) -> Unit, onError: (Exception) -> Unit) {
         try {
             val image = InputImage.fromFilePath(context, imageUri)
 
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     val fullText = visionText.text
-                    val lines = fullText.lines()
+                    val lines = fullText.lines().filter { it.isNotBlank() }
 
-                    val shopName = lines.firstOrNull { it.isNotBlank() } ?: ""
+                    val shopName = lines.getOrNull(0) ?: ""
+                    val address = lines.getOrNull(1) ?: ""
+                    
                     val dateRegex = """\d{2}[.-]\d{2}[.-]\d{4}|\d{4}[.-]\d{2}[.-]\d{2}""".toRegex()
                     val date = dateRegex.find(fullText)?.value ?: ""
                     var totalAmount = ""
@@ -44,7 +46,7 @@ class ReceiptScanner {
                             totalAmount = String.format(java.util.Locale.US, "%.2f", bestAmount)
                         }
                     }
-                    onResult(shopName, date, totalAmount)
+                    onResult(shopName, address, date, totalAmount)
                 }
                 .addOnFailureListener { e ->
                     onError(e)

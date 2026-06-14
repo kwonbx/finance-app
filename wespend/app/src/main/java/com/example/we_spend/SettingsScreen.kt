@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -123,21 +124,29 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Row(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Tryb ciemny", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text("Zmień motyw aplikacji", style = MaterialTheme.typography.bodySmall)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Motyw aplikacji", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text("Wybierz preferowany wygląd", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val themes = listOf("light" to "Jasny", "dark" to "Ciemny", "system" to "System")
+                        themes.forEach { (mode, label) ->
+                            val isSelected = viewModel.themeMode == mode
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.updateThemeMode(mode) },
+                                label = { Text(label) },
+                                modifier = Modifier.weight(1f),
+                                leadingIcon = if (isSelected) {
+                                    { Icon(imageVector = Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                } else null
+                            )
+                        }
                     }
-                    Switch(
-                        checked = viewModel.isDarkMode,
-                        onCheckedChange = { viewModel.toggleDarkMode(it) }
-                    )
                 }
             }
 

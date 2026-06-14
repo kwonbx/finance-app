@@ -180,8 +180,8 @@ fun ExpensesScreen(
                             ExpenseListItem(
                                 expense = expense,
                                 onDeleteClick = { expenseToDelete = expense },
-                                onRecurringClick = {
-                                    navController.navigate("edit_recurring/${expense.recurringExpenseId}")
+                                onClick = {
+                                    navController.navigate("edit_expense/${expense.id}")
                                 }
                             )
                         }

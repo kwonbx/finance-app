@@ -22,11 +22,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -48,6 +50,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController, viewModel: RegisterViewModel) {
     var isPasswordVisible by remember { mutableStateOf(false) }
@@ -91,112 +94,117 @@ fun RegisterScreen(navController: NavController, viewModel: RegisterViewModel) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Text(
-            text = "Utwórz konto",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Utwórz konto",
+                style = MaterialTheme.typography.headlineMedium
+            )
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = viewModel.name,
-            onValueChange = { viewModel.updateName(it)},
-            label = { Text("Nazwa użytkownika") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = viewModel.email,
-            onValueChange = { viewModel.updateEmail(it) },
-            label = { Text("E-mail") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = viewModel.password,
-            onValueChange = { viewModel.updatePassword(it) },
-            label = { Text("Hasło") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                val icon = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                    Icon(imageVector = icon, contentDescription = "Ukryj/Pokaż hasło")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
-                value = viewModel.dateOfBirth,
-                onValueChange = {},
-                label = { Text("Data urodzenia") },
-                readOnly = true,
+                value = viewModel.name,
+                onValueChange = { viewModel.updateName(it) },
+                label = { Text("Nazwa użytkownika") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = viewModel.email,
+                onValueChange = { viewModel.updateEmail(it) },
+                label = { Text("E-mail") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = viewModel.password,
+                onValueChange = { viewModel.updatePassword(it) },
+                label = { Text("Hasło") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
-                    IconButton(onClick = { showDatePicker = true }) {
-                        Icon(imageVector = Icons.Filled.CalendarMonth, contentDescription = "Wybierz datę")
+                    val icon = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                        Icon(imageVector = icon, contentDescription = "Ukryj/Pokaż hasło")
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clickable { showDatePicker = true }
-            )
-        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            enabled = !viewModel.isLoading,
-            onClick = {
-                viewModel.registerUser(
-                    onSuccess = {
-                        Toast.makeText(context, "Konto zostało utworzone!", Toast.LENGTH_SHORT).show()
-                        navController.navigate("login") {
-                            popUpTo("register") { inclusive = true }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = viewModel.dateOfBirth,
+                    onValueChange = {},
+                    label = { Text("Data urodzenia") },
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(imageVector = Icons.Filled.CalendarMonth, contentDescription = "Wybierz datę")
                         }
                     },
-                    onError = { errorMessage ->
-                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
-                    }
+                    modifier = Modifier.fillMaxWidth()
                 )
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp)
-        ) {
-            if (viewModel.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-            } else {
-                Text(text = "Zarejestruj się")
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showDatePicker = true }
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        TextButton(
-            onClick = { navController.popBackStack() }
-        ) {
-            Text(text = "Masz już konto? Zaloguj się")
+            Button(
+                enabled = !viewModel.isLoading,
+                onClick = {
+                    viewModel.registerUser(
+                        onSuccess = {
+                            Toast.makeText(context, "Konto zostało utworzone!", Toast.LENGTH_SHORT).show()
+                            navController.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                            }
+                        },
+                        onError = { errorMessage ->
+                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                        }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) {
+                if (viewModel.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text(text = "Zarejestruj się")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(
+                onClick = { navController.popBackStack() }
+            ) {
+                Text(text = "Masz już konto? Zaloguj się")
+            }
         }
     }
 }

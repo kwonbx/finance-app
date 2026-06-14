@@ -1,12 +1,10 @@
 package com.example.we_spend
 
-import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -16,6 +14,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         val expenseRepository = ExpenseRepository()
         val revenueRepository = RevenueRepository()
 
-        val sharedPrefs = getSharedPreferences("WeSpendPrefs", Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences("WeSpendPrefs", MODE_PRIVATE)
 
         var startDestination = "login"
         val isRemembered = sharedPrefs.getBoolean("REMEMBER_ME", false)
@@ -43,16 +43,32 @@ class MainActivity : ComponentActivity() {
                 startDestination = "home"
             } else {
                 auth.signOut()
+                sharedPrefs.edit().putString("THEME_MODE", "system").apply()
             }
+        } else {
+            sharedPrefs.edit().putString("THEME_MODE", "system").apply()
         }
 
         setContent {
-            val isDarkMode = remember { mutableStateOf(sharedPrefs.getBoolean("DARK_MODE", false)) }
+            val themeMode = remember { mutableStateOf(sharedPrefs.getString("THEME_MODE", "system") ?: "system") }
+            
+            // Effect to sync theme from Firebase when user is logged in
+            LaunchedEffect(auth.currentUser) {
+                if (auth.currentUser != null) {
+                    val user = userRepository.getUserProfile()
+                    user?.let {
+                        if (it.theme != themeMode.value) {
+                            themeMode.value = it.theme
+                            sharedPrefs.edit().putString("THEME_MODE", it.theme).apply()
+                        }
+                    }
+                }
+            }
             
             DisposableEffect(sharedPrefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-                    if (key == "DARK_MODE") {
-                        isDarkMode.value = prefs.getBoolean("DARK_MODE", false)
+                    if (key == "THEME_MODE") {
+                        themeMode.value = prefs.getString("THEME_MODE", "system") ?: "system"
                     }
                 }
                 sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
@@ -61,7 +77,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            WespendTheme(darkTheme = isDarkMode.value) {
+            val darkTheme = when (themeMode.value) {
+                "light" -> false
+                "dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+
+            WespendTheme(darkTheme = darkTheme) {
                 MyApp(auth, userRepository, expenseRepository, revenueRepository, sharedPrefs, startDestination)
             }
         }
@@ -82,6 +104,9 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
     val vmExpenses: ExpensesViewModel = viewModel(factory = ExpensesViewModel.Factory(expenseRepository, userRepository))
     val vmRevenues: RevenuesViewModel = viewModel(factory = RevenuesViewModel.Factory(revenueRepository, userRepository))
     val vmAnalytics: AnalyticsViewModel = viewModel(factory = AnalyticsViewModel.Factory(expenseRepository, revenueRepository, userRepository))
+    val vmMap: MapViewModel = viewModel(factory = MapViewModel.Factory(expenseRepository, userRepository))
+    val vmEditExpense: EditExpenseViewModel = viewModel(factory = EditExpenseViewModel.Factory(expenseRepository))
+    val vmEditRevenue: EditRevenueViewModel = viewModel(factory = EditRevenueViewModel.Factory(revenueRepository))
     val editViewModel: EditRecurringViewModel = viewModel(factory = EditRecurringViewModel.Factory(expenseRepository))
     val editRevenueViewModel: EditRecurringRevenueViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = EditRecurringRevenueViewModel.Factory(revenueRepository))
 
@@ -106,6 +131,24 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
             AddExpenseScreen(navController = navController, viewModel = vmAddExpense)
         }
 
+        composable("location_picker") {
+            LocationPickerScreen(navController = navController, viewModel = vmAddExpense)
+        }
+
+        composable("location_picker_edit") {
+            LocationPickerScreen(navController = navController, viewModel = vmEditExpense, title = "Zmień lokalizację")
+        }
+
+        composable("edit_expense/{expenseId}") { backStackEntry ->
+            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: ""
+            EditExpenseScreen(navController, vmEditExpense, expenseId)
+        }
+
+        composable("edit_revenue/{revenueId}") { backStackEntry ->
+            val revenueId = backStackEntry.arguments?.getString("revenueId") ?: ""
+            EditRevenueScreen(navController, vmEditRevenue, revenueId)
+        }
+
         composable("settings") {
             SettingsScreen(navController = navController, viewModel = vmSettings)
         }
@@ -124,6 +167,10 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
 
         composable("analytics") {
             AnalyticsScreen(navController, vmAnalytics)
+        }
+
+        composable("map") {
+            MapScreen(navController, vmMap)
         }
 
         composable("add_revenue") {

@@ -59,7 +59,10 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                 currentRoute = "home",
                 onNavigate = { route -> navController.navigate(route) },
                 onLogout = {
-                    sharedPrefs.edit { putBoolean("REMEMBER_ME", false) }
+                    sharedPrefs.edit { 
+                        putBoolean("REMEMBER_ME", false)
+                        putString("THEME_MODE", "system")
+                    }
                     auth.signOut()
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
@@ -209,7 +212,12 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 items(viewModel.recentExpenses) { expense ->
-                                    ExpenseListItem(expense = expense)
+                                    ExpenseListItem(
+                                        expense = expense,
+                                        onClick = {
+                                            navController.navigate("edit_expense/${expense.id}")
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -225,7 +233,12 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 items(viewModel.recentRevenues) { revenue ->
-                                    RevenueListItem(revenue = revenue)
+                                    RevenueListItem(
+                                        revenue = revenue,
+                                        onClick = {
+                                            navController.navigate("edit_revenue/${revenue.id}")
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -263,7 +276,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
 fun ExpenseListItem(
     expense: Expense,
     onDeleteClick: (() -> Unit)? = null,
-    onRecurringClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null
 ) {
     val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
     val dateString = sdf.format(Date(expense.dateInMillis))
@@ -272,8 +285,8 @@ fun ExpenseListItem(
     val isMyExpense = currentUserId == expense.userId
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = expense.recurringExpenseId != null && onRecurringClick != null) {
-            onRecurringClick?.invoke()
+        modifier = Modifier.fillMaxWidth().clickable(enabled = onClick != null) {
+            onClick?.invoke()
         },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -288,12 +301,20 @@ fun ExpenseListItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = expense.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.weight(1f).padding(end = 8.dp)
-                )
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = expense.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                    )
+                    if (expense.shopName.isNotBlank()) {
+                        Text(
+                            text = expense.shopName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 Text(
                     text = String.format("-%.2f zł", expense.amount),
                     fontWeight = FontWeight.Bold,
@@ -355,7 +376,7 @@ fun ExpenseListItem(
 fun RevenueListItem(
     revenue: Revenue,
     onDeleteClick: (() -> Unit)? = null,
-    onRecurringClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null
 ) {
     val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
     val dateString = sdf.format(Date(revenue.dateInMillis))
@@ -364,8 +385,8 @@ fun RevenueListItem(
     val isMyRevenue = currentUserId == revenue.userId
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = revenue.recurringRevenueId != null && onRecurringClick != null) {
-            onRecurringClick?.invoke()
+        modifier = Modifier.fillMaxWidth().clickable(enabled = onClick != null) {
+            onClick?.invoke()
         },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -551,6 +572,18 @@ fun AppDrawerContent(
             onClick = {
                 onClose()
                 if (currentRoute != "analytics") onNavigate("analytics")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Mapa wydatków") },
+            selected = currentRoute == "map",
+            onClick = {
+                onClose()
+                if (currentRoute != "map") onNavigate("map")
             },
             modifier = Modifier.padding(horizontal = 16.dp)
         )

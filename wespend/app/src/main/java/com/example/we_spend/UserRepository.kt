@@ -67,6 +67,14 @@ class UserRepository {
             .addOnFailureListener { e -> onFailure(e) }
     }
 
+    fun updateUserTheme(newTheme: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val userId = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(userId)
+            .update("theme", newTheme)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onFailure(e) }
+    }
+
     fun uploadAvatar(base64String: String, onSuccess: (String) -> Unit, onFailure: (Exception) -> Unit) {
         val userId = auth.currentUser?.uid ?: run {
             onFailure(Exception("Brak zalogowanego użytkownika"))

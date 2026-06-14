@@ -43,6 +43,24 @@ class RevenueRepository {
         }
     }
 
+    suspend fun getRevenuesBetween(startMillis: Long, endMillis: Long): List<Revenue> {
+        val userId = auth.currentUser?.uid ?: return emptyList()
+        return try {
+            val snapshot = db.collection("users")
+                .document(userId)
+                .collection("revenues")
+                .whereGreaterThanOrEqualTo("dateInMillis", startMillis)
+                .whereLessThan("dateInMillis", endMillis)
+                .orderBy("dateInMillis", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            snapshot.toObjects(Revenue::class.java)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun getFamilyRevenuesFrom(familyId: String, startDateInMillis: Long): List<Revenue> {
         return try {
             val snapshot = db.collectionGroup("revenues")
@@ -59,12 +77,75 @@ class RevenueRepository {
         }
     }
 
+    suspend fun getFamilyRevenuesBetween(familyId: String, startMillis: Long, endMillis: Long): List<Revenue> {
+        return try {
+            val snapshot = db.collectionGroup("revenues")
+                .whereEqualTo("familyId", familyId)
+                .whereGreaterThanOrEqualTo("dateInMillis", startMillis)
+                .whereLessThan("dateInMillis", endMillis)
+                .orderBy("dateInMillis", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            snapshot.toObjects(Revenue::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getEarliestRevenueDate(familyId: String? = null): Long? {
+        val userId = auth.currentUser?.uid ?: return null
+        return try {
+            val userEarliest = db.collection("users")
+                .document(userId)
+                .collection("revenues")
+                .orderBy("dateInMillis", Query.Direction.ASCENDING)
+                .limit(1)
+                .get()
+                .await()
+                .documents.firstOrNull()?.getLong("dateInMillis")
+
+            val familyEarliest = if (!familyId.isNullOrEmpty()) {
+                db.collectionGroup("revenues")
+                    .whereEqualTo("familyId", familyId)
+                    .orderBy("dateInMillis", Query.Direction.ASCENDING)
+                    .limit(1)
+                    .get()
+                    .await()
+                    .documents.firstOrNull()?.getLong("dateInMillis")
+            } else null
+
+            listOfNotNull(userEarliest, familyEarliest).minOrNull()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun deleteRevenue(revenue: Revenue, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         db.collection("users").document(revenue.userId)
             .collection("revenues").document(revenue.id)
             .delete()
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onFailure(e) }
+    }
+
+    fun getRevenue(revenueId: String, onSuccess: (Revenue?) -> Unit, onFailure: (Exception) -> Unit) {
+        val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
+        db.collection("users").document(userId)
+            .collection("revenues").document(revenueId)
+            .get()
+            .addOnSuccessListener { doc -> onSuccess(doc.toObject(Revenue::class.java)) }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    fun updateRevenue(revenue: Revenue, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
+        db.collection("users").document(userId)
+            .collection("revenues").document(revenue.id)
+            .set(revenue)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     fun addRecurringRevenue(recurring: RecurringRevenue, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
@@ -176,11 +257,13 @@ class RevenueRepository {
             .addOnFailureListener { onFailure(it) }
     }
 
-    fun updateRecurringRevenue(recurringId: String, newAmount: Double, newFrequency: Int, newNextDateMillis: Long, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+    fun updateRecurringRevenue(recurringId: String, newTitle: String, newCategory: String, newAmount: Double, newFrequency: Int, newNextDateMillis: Long, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
         db.collection("users").document(userId)
             .collection("recurring_revenues").document(recurringId)
             .update(mapOf(
+                "title" to newTitle,
+                "category" to newCategory,
                 "amount" to newAmount,
                 "frequencyDays" to newFrequency,
                 "nextPaymentDateInMillis" to newNextDateMillis

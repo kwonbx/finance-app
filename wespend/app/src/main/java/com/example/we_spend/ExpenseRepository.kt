@@ -43,6 +43,24 @@ class ExpenseRepository {
         }
     }
 
+    suspend fun getExpensesBetween(startMillis: Long, endMillis: Long): List<Expense> {
+        val userId = auth.currentUser?.uid ?: return emptyList()
+        return try {
+            val snapshot = db.collection("users")
+                .document(userId)
+                .collection("expenses")
+                .whereGreaterThanOrEqualTo("dateInMillis", startMillis)
+                .whereLessThan("dateInMillis", endMillis)
+                .orderBy("dateInMillis", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            snapshot.toObjects(Expense::class.java)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun getFamilyExpensesFrom(familyId: String, startDateInMillis: Long): List<Expense> {
         return try {
             val snapshot = db.collectionGroup("expenses")
@@ -59,12 +77,75 @@ class ExpenseRepository {
         }
     }
 
+    suspend fun getFamilyExpensesBetween(familyId: String, startMillis: Long, endMillis: Long): List<Expense> {
+        return try {
+            val snapshot = db.collectionGroup("expenses")
+                .whereEqualTo("familyId", familyId)
+                .whereGreaterThanOrEqualTo("dateInMillis", startMillis)
+                .whereLessThan("dateInMillis", endMillis)
+                .orderBy("dateInMillis", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            snapshot.toObjects(Expense::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getEarliestExpenseDate(familyId: String? = null): Long? {
+        val userId = auth.currentUser?.uid ?: return null
+        return try {
+            val userEarliest = db.collection("users")
+                .document(userId)
+                .collection("expenses")
+                .orderBy("dateInMillis", Query.Direction.ASCENDING)
+                .limit(1)
+                .get()
+                .await()
+                .documents.firstOrNull()?.getLong("dateInMillis")
+
+            val familyEarliest = if (!familyId.isNullOrEmpty()) {
+                db.collectionGroup("expenses")
+                    .whereEqualTo("familyId", familyId)
+                    .orderBy("dateInMillis", Query.Direction.ASCENDING)
+                    .limit(1)
+                    .get()
+                    .await()
+                    .documents.firstOrNull()?.getLong("dateInMillis")
+            } else null
+
+            listOfNotNull(userEarliest, familyEarliest).minOrNull()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun deleteExpense(expense: Expense, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         db.collection("users").document(expense.userId)
             .collection("expenses").document(expense.id)
             .delete()
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onFailure(e) }
+    }
+
+    fun getExpense(expenseId: String, onSuccess: (Expense?) -> Unit, onFailure: (Exception) -> Unit) {
+        val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
+        db.collection("users").document(userId)
+            .collection("expenses").document(expenseId)
+            .get()
+            .addOnSuccessListener { doc -> onSuccess(doc.toObject(Expense::class.java)) }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    fun updateExpense(expense: Expense, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
+        db.collection("users").document(userId)
+            .collection("expenses").document(expense.id)
+            .set(expense)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     fun addRecurringExpense(recurring: RecurringExpense, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
@@ -176,11 +257,13 @@ class ExpenseRepository {
             .addOnFailureListener { onFailure(it) }
     }
 
-    fun updateRecurringExpense(recurringId: String, newAmount: Double, newFrequency: Int, newNextDateMillis: Long, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+    fun updateRecurringExpense(recurringId: String, newTitle: String, newCategory: String, newAmount: Double, newFrequency: Int, newNextDateMillis: Long, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
         db.collection("users").document(userId)
             .collection("recurring_expenses").document(recurringId)
             .update(mapOf(
+                "title" to newTitle,
+                "category" to newCategory,
                 "amount" to newAmount,
                 "frequencyDays" to newFrequency,
                 "nextPaymentDateInMillis" to newNextDateMillis

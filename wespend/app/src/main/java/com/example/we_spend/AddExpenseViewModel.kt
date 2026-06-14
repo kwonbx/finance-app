@@ -11,8 +11,16 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, private val userRepository: UserRepository) : ViewModel() {
+class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, private val userRepository: UserRepository) : ViewModel(), LocationViewModel {
     var title by mutableStateOf("")
+        private set
+    var shopName by mutableStateOf("")
+        private set
+    override var latitude by mutableStateOf<Double?>(null)
+        private set
+    override var longitude by mutableStateOf<Double?>(null)
+        private set
+    var address by mutableStateOf("")
         private set
     var amount by mutableStateOf("")
         private set
@@ -29,8 +37,75 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
     var expenseDate by mutableStateOf(LocalDate.now())
         private set
 
+    var shopSuggestions by mutableStateOf<List<Expense>>(emptyList())
+        private set
+
     val categories = listOf("Jedzenie", "Transport", "Rozrywka", "Zdrowie", "Rachunki", "Inne")
     fun updateTitle(input: String) { title = input }
+    fun updateShopName(input: String) { 
+        shopName = input
+        if (input.length >= 2) {
+            checkShopNameHistory(input)
+        } else {
+            shopSuggestions = emptyList()
+        }
+    }
+
+    private fun checkShopNameHistory(name: String) {
+        viewModelScope.launch {
+            try {
+                val expenses = expenseRepository.getExpensesFrom(0)
+                shopSuggestions = expenses
+                    .filter { it.shopName.contains(name, ignoreCase = true) }
+                    .distinctBy { it.shopName + it.address }
+                    .take(3)
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    fun applySuggestion(expense: Expense) {
+        shopName = expense.shopName
+        address = expense.address ?: ""
+        latitude = expense.latitude
+        longitude = expense.longitude
+        category = expense.category
+        shopSuggestions = emptyList()
+    }
+    override fun updateLocation(lat: Double?, lng: Double?, addr: String?) {
+        latitude = lat
+        longitude = lng
+        if (!addr.isNullOrBlank()) {
+            address = addr
+        } else if (lat != null && lng != null) {
+            address = "Wybrane na mapie"
+        }
+        
+        if (lat != null && lng != null) {
+            checkNearbyExpenses(lat, lng)
+        }
+    }
+
+    private fun checkNearbyExpenses(lat: Double, lng: Double) {
+        viewModelScope.launch {
+            try {
+                val expenses = expenseRepository.getExpensesFrom(0)
+                val match = expenses.find { 
+                    it.latitude != null && it.longitude != null &&
+                    kotlin.math.abs(it.latitude - lat) < 0.0001 &&
+                    kotlin.math.abs(it.longitude - lng) < 0.0001
+                }
+                
+                match?.let {
+                    if (shopName.isBlank()) shopName = it.shopName
+                    if (address.isBlank() || address == "Wybrane na mapie") address = it.address ?: ""
+                    if (category == "Jedzenie") category = it.category
+                }
+            } catch (e: Exception) {
+            }
+        }
+    }
+    fun updateAddress(input: String) { address = input }
     fun updateAmount(input: String) { amount = input }
     fun updateCategory(input: String) { category = input }
 
@@ -89,6 +164,10 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
                     amount = parsedAmount,
                     type = type,
                     category = category,
+                    shopName = shopName,
+                    latitude = latitude,
+                    longitude = longitude,
+                    address = address,
                     dateInMillis = expenseDateMillis,
                     familyId = currentFamilyId
                 )
@@ -98,6 +177,10 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
                     onSuccess = {
                         isLoading = false
                         title = ""
+                        shopName = ""
+                        latitude = null
+                        longitude = null
+                        address = ""
                         amount = ""
                         type = "Jednorazowy"
                         category = "Jedzenie"
@@ -121,6 +204,10 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
                     title = title,
                     amount = parsedAmount,
                     category = category,
+                    shopName = shopName,
+                    latitude = latitude,
+                    longitude = longitude,
+                    address = address,
                     frequencyDays = freq,
                     nextPaymentDateInMillis = nextDateMillis,
                     familyId = currentFamilyId,
@@ -132,6 +219,10 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
                     amount = parsedAmount,
                     type = "Stały",
                     category = category,
+                    shopName = shopName,
+                    latitude = latitude,
+                    longitude = longitude,
+                    address = address,
                     dateInMillis = expenseDateMillis,
                     familyId = currentFamilyId
                 )
@@ -142,6 +233,10 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
                     onSuccess = {
                         isLoading = false
                         title = ""
+                        shopName = ""
+                        latitude = null
+                        longitude = null
+                        address = ""
                         amount = ""
                         type = "Jednorazowy"
                         category = "Jedzenie"
@@ -155,9 +250,15 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
             }
         }
     }
-    fun onReceiptScanned(shopName: String, scannedAmount: String, scannedDate: String) {
+    fun onReceiptScanned(shopName: String, address: String, scannedAmount: String, scannedDate: String) {
         if (shopName.isNotBlank()) {
-            title = shopName
+            this.shopName = shopName
+            if (this.title.isBlank()) {
+                this.title = shopName
+            }
+        }
+        if (address.isNotBlank()) {
+            this.address = address
         }
         if (scannedAmount.isNotBlank()) {
             amount = scannedAmount

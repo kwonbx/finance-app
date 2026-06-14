@@ -104,7 +104,8 @@ class ExpensesViewModel(
             val matchesCategory = selectedCategories.isEmpty() || selectedCategories.contains(expense.category)
             val matchesUser = !isFamilyView || selectedUsers.isEmpty() || selectedUsers.contains(expense.userId)
 
-            val matchesSearch = expense.title.contains(searchQuery, ignoreCase = true)
+            val matchesSearch = expense.title.contains(searchQuery, ignoreCase = true) ||
+                    expense.shopName.contains(searchQuery, ignoreCase = true)
 
             matchesType && matchesCategory && matchesUser && matchesSearch
         }

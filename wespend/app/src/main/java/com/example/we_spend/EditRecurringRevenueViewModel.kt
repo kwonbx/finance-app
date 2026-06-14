@@ -16,8 +16,10 @@ class EditRecurringRevenueViewModel(private val revenueRepository: RevenueReposi
         private set
     var title by mutableStateOf("")
         private set
+    fun updateTitle(input: String) { title = input }
     var category by mutableStateOf("")
         private set
+    fun updateCategory(input: String) { category = input }
     var amount by mutableStateOf("")
         private set
     var frequencyDays by mutableStateOf("")
@@ -79,6 +81,10 @@ class EditRecurringRevenueViewModel(private val revenueRepository: RevenueReposi
         val parsedAmount = amount.replace(",", ".").toDoubleOrNull()
         val parsedFreq = frequencyDays.toIntOrNull()
 
+        if (title.isBlank()) {
+            onError("Podaj tytuł")
+            return
+        }
         if (parsedAmount == null || parsedAmount <= 0) {
             onError("Podaj poprawną kwotę")
             return
@@ -91,6 +97,8 @@ class EditRecurringRevenueViewModel(private val revenueRepository: RevenueReposi
         isLoading = true
         revenueRepository.updateRecurringRevenue(
             recurringId = id,
+            newTitle = title,
+            newCategory = category,
             newAmount = parsedAmount,
             newFrequency = parsedFreq,
             newNextDateMillis = currentNextDateMillis,

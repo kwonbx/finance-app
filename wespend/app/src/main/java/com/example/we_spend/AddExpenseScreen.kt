@@ -1,5 +1,9 @@
 package com.example.we_spend
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,12 +25,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,13 +55,73 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
     val receiptScanner = remember { ReceiptScanner() }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
     var isScanning by remember { mutableStateOf(false) }
+    var geoSuggestions by remember { mutableStateOf<List<Address>>(emptyList()) }
+
+    // Real-time search for places when shopName changes
+    LaunchedEffect(viewModel.shopName) {
+        if (viewModel.shopName.length < 3) {
+            geoSuggestions = emptyList()
+            return@LaunchedEffect
+        }
+        delay(800) // Debounce
+        withContext(Dispatchers.IO) {
+            try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                
+                // Try to bias search results to user's current location if available
+                val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                val lastLocation = if (hasPermission) {
+                    try {
+                        fusedLocationClient.lastLocation.await()
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else null
+
+                var addresses: List<Address>? = null
+                
+                if (lastLocation != null) {
+                    var radius = 0.5 // Initial "zoom" area (~50km)
+                    while (radius <= 10.0) { // Max expansion
+                        val results = geocoder.getFromLocationName(
+                            viewModel.shopName,
+                            7,
+                            lastLocation.latitude - radius,
+                            lastLocation.longitude - radius,
+                            lastLocation.latitude + radius,
+                            lastLocation.longitude + radius
+                        )
+                        if (!results.isNullOrEmpty()) {
+                            addresses = results
+                            if (results.size >= 3) break
+                        }
+                        radius *= 2.0 // Expand search area
+                    }
+                }
+                
+                // Fallback to global search if no local results or no location permission
+                if (addresses.isNullOrEmpty()) {
+                    addresses = geocoder.getFromLocationName(viewModel.shopName, 10)
+                }
+
+                // Filter and limit to 5 results, prioritizing those with a distinct feature name
+                // and ensuring we don't just show house numbers as titles.
+                geoSuggestions = (addresses ?: emptyList())
+                    .filter { it.featureName != null && !it.featureName.all { char -> char.isDigit() } }
+                    .take(5)
+            } catch (e: Exception) {
+                geoSuggestions = emptyList()
+            }
+        }
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             isScanning = true
             receiptScanner.scanReceipt(context, uri,
-                onResult = { shop, date, amount ->
-                    viewModel.onReceiptScanned(shop, amount, date)
+                onResult = { shop, address, date, amount ->
+                    viewModel.onReceiptScanned(shop, address, amount, date)
                     isScanning = false
                     Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
                 },
@@ -65,8 +137,8 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
         if (success && tempImageUri != null) {
             isScanning = true
             receiptScanner.scanReceipt(context, tempImageUri!!,
-                onResult = { shop, date, amount ->
-                    viewModel.onReceiptScanned(shop, amount, date)
+                onResult = { shop, address, date, amount ->
+                    viewModel.onReceiptScanned(shop, address, amount, date)
                     isScanning = false
                     Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
                 },
@@ -156,9 +228,95 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
             OutlinedTextField(
                 value = viewModel.title,
                 onValueChange = { viewModel.updateTitle(it) },
-                label = { Text("Tytuł (np. Zakupy Biedronka)") },
+                label = { Text("Tytuł (np. Zakupy spożywcze)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = viewModel.shopName,
+                onValueChange = { viewModel.updateShopName(it) },
+                label = { Text("Sklep / Miejsce (np. Biedronka)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (viewModel.shopSuggestions.isNotEmpty() || geoSuggestions.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column {
+                        // History Suggestions
+                        viewModel.shopSuggestions.forEach { suggestion ->
+                            ListItem(
+                                headlineContent = { Text(suggestion.shopName) },
+                                supportingContent = { Text(suggestion.address ?: "Historia") },
+                                trailingContent = { Text("🕒", style = MaterialTheme.typography.bodySmall) },
+                                modifier = Modifier.clickable { 
+                                    viewModel.applySuggestion(suggestion)
+                                    geoSuggestions = emptyList()
+                                }
+                            )
+                        }
+                        
+                        // Google Places (Geocoder) Suggestions
+                        geoSuggestions.forEach { address ->
+                            val featureName = address.featureName ?: ""
+                            val addressLine = address.getAddressLine(0) ?: ""
+                            
+                            // Better partial matching display logic:
+                            // 1. If featureName is just a number (house number), use shopName or part of address
+                            // 2. Otherwise use featureName if it's not already at the start of addressLine
+                            val headline = if (featureName.isNotBlank() && !featureName.all { it.isDigit() }) {
+                                if (addressLine.startsWith(featureName)) {
+                                    // If address starts with featureName, try to see if there's a more specific sub-locality or just use shopName
+                                    address.subThoroughfare?.let { num -> 
+                                        if (featureName == num) viewModel.shopName.replaceFirstChar { it.uppercase() } 
+                                        else featureName 
+                                    } ?: featureName
+                                } else {
+                                    featureName
+                                }
+                            } else {
+                                viewModel.shopName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                            }
+                            
+                            ListItem(
+                                headlineContent = { Text(headline) },
+                                supportingContent = { Text(addressLine) },
+                                trailingContent = { Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                modifier = Modifier.clickable {
+                                    viewModel.updateShopName(headline)
+                                    viewModel.updateLocation(address.latitude, address.longitude, addressLine)
+                                    geoSuggestions = emptyList()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = viewModel.address,
+                onValueChange = { viewModel.updateAddress(it) },
+                label = { Text("Adres (opcjonalnie)") },
+                singleLine = true,
+                trailingIcon = {
+                    IconButton(onClick = { navController.navigate("location_picker") }) {
+                        Icon(Icons.Filled.LocationOn, contentDescription = "Wybierz na mapie")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = {
+                    if (viewModel.latitude != null && viewModel.longitude != null) {
+                        Text("Lokalizacja wybrana (zapisano współrzędne)", color = MaterialTheme.colorScheme.tertiary)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -16,8 +16,10 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
         private set
     var title by mutableStateOf("")
         private set
+    fun updateTitle(input: String) { title = input }
     var category by mutableStateOf("")
         private set
+    fun updateCategory(input: String) { category = input }
     var amount by mutableStateOf("")
         private set
     var frequencyDays by mutableStateOf("")
@@ -80,6 +82,10 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
         val parsedAmount = amount.replace(",", ".").toDoubleOrNull()
         val parsedFreq = frequencyDays.toIntOrNull()
 
+        if (title.isBlank()) {
+            onError("Podaj tytuł")
+            return
+        }
         if (parsedAmount == null || parsedAmount <= 0) {
             onError("Podaj poprawną kwotę")
             return
@@ -92,6 +98,8 @@ class EditRecurringViewModel(private val expenseRepository: ExpenseRepository) :
         isLoading = true
         expenseRepository.updateRecurringExpense(
             recurringId = id,
+            newTitle = title,
+            newCategory = category,
             newAmount = parsedAmount,
             newFrequency = parsedFreq,
             newNextDateMillis = currentNextDateMillis, // Zapis nowej daty

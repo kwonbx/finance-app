@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,10 +37,15 @@ import kotlin.math.sin
 @Composable
 fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel) {
     val scrollState = rememberScrollState()
+    var showDatePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadData()
     }
+
+    val polishLocale = Locale("pl", "PL")
+    val monthYearFormat = SimpleDateFormat("MMMM yyyy", polishLocale)
+    val selectedMonthLabel = monthYearFormat.format(viewModel.selectedCalendar.time)
 
     Scaffold(
         topBar = {
@@ -49,6 +56,14 @@ fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel)
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Powrót")
                     }
                 },
+                actions = {
+                    TextButton(onClick = { showDatePicker = true }) {
+                        Text(
+                            text = selectedMonthLabel.replaceFirstChar { if (it.isLowerCase()) it.titlecase(polishLocale) else it.toString() },
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -57,6 +72,18 @@ fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel)
             )
         }
     ) { paddingValues ->
+        if (showDatePicker) {
+            MonthYearPickerDialog(
+                currentCalendar = viewModel.selectedCalendar,
+                earliestDateMillis = viewModel.earliestDateMillis,
+                onMonthSelected = { newCalendar ->
+                    viewModel.loadData(newCalendar)
+                    showDatePicker = false
+                },
+                onDismiss = { showDatePicker = false }
+            )
+        }
+
         if (viewModel.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -79,7 +106,15 @@ fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel)
                 if (viewModel.expenses.isEmpty()) {
                     Text("Brak danych o wydatkach w tym miesiącu.")
                 } else {
-                    PieChart(expenses = viewModel.expenses)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Box(modifier = Modifier.padding(16.dp)) {
+                            PieChart(expenses = viewModel.expenses)
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -94,7 +129,19 @@ fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel)
                 if (viewModel.expenses.isEmpty() && viewModel.revenues.isEmpty()) {
                     Text("Brak danych do porównania.")
                 } else {
-                    ComparisonLineChart(expenses = viewModel.expenses, revenues = viewModel.revenues)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Box(modifier = Modifier.padding(16.dp)) {
+                            ComparisonLineChart(
+                                expenses = viewModel.expenses, 
+                                revenues = viewModel.revenues,
+                                selectedCalendar = viewModel.selectedCalendar
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -203,10 +250,17 @@ fun PieChart(expenses: List<Expense>) {
 }
 
 @Composable
-fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
-    val calendar = Calendar.getInstance()
-    val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
+fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>, selectedCalendar: Calendar) {
+    val daysInMonth = selectedCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+    
+    val currentDay = if (
+        selectedCalendar.get(Calendar.MONTH) == Calendar.getInstance().get(Calendar.MONTH) &&
+        selectedCalendar.get(Calendar.YEAR) == Calendar.getInstance().get(Calendar.YEAR)
+    ) {
+        Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+    } else {
+        daysInMonth
+    }
 
     val dailyExpenses = DoubleArray(daysInMonth + 1)
     val dailyRevenues = DoubleArray(daysInMonth + 1)
@@ -214,25 +268,27 @@ fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
     val sdf = SimpleDateFormat("d", Locale.getDefault())
 
     expenses.forEach {
-        val day = sdf.format(Date(it.dateInMillis)).toInt()
+        val cal = Calendar.getInstance().apply { timeInMillis = it.dateInMillis }
+        val day = cal.get(Calendar.DAY_OF_MONTH)
         if (day <= daysInMonth) {
             dailyExpenses[day] += it.amount
         }
     }
 
     revenues.forEach {
-        val day = sdf.format(Date(it.dateInMillis)).toInt()
+        val cal = Calendar.getInstance().apply { timeInMillis = it.dateInMillis }
+        val day = cal.get(Calendar.DAY_OF_MONTH)
         if (day <= daysInMonth) {
             dailyRevenues[day] += it.amount
         }
     }
 
-    val cumulativeExpenses = DoubleArray(currentDay + 1)
-    val cumulativeRevenues = DoubleArray(currentDay + 1)
+    val cumulativeExpenses = DoubleArray(daysInMonth + 1)
+    val cumulativeRevenues = DoubleArray(daysInMonth + 1)
     var currentSumExp = 0.0
     var currentSumRev = 0.0
 
-    for (i in 1..currentDay) {
+    for (i in 1..daysInMonth) {
         currentSumExp += dailyExpenses[i]
         currentSumRev += dailyRevenues[i]
         cumulativeExpenses[i] = currentSumExp
@@ -246,7 +302,7 @@ fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
     val errorColor = MaterialTheme.colorScheme.error
     val gridColor = Color.LightGray.copy(alpha = 0.5f)
 
-    var selectedDay by remember { mutableStateOf<Int?>(null) }
+    var selectedDay by remember(selectedCalendar) { mutableStateOf<Int?>(currentDay) }
 
     Column {
         Card(
@@ -260,9 +316,9 @@ fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp)
-                    .pointerInput(Unit) {
+                    .pointerInput(selectedCalendar) {
                         detectTapGestures { offset ->
-                            val stepX = size.width / (currentDay - 1).coerceAtLeast(1)
+                            val stepX = size.width / (daysInMonth - 1).coerceAtLeast(1)
                             val day = (offset.x / stepX).roundToInt() + 1
                             selectedDay = day.coerceIn(1, currentDay)
                         }
@@ -270,7 +326,7 @@ fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
             ) {
                 val width = size.width
                 val height = size.height
-                val stepX = width / (currentDay - 1).coerceAtLeast(1)
+                val stepX = width / (daysInMonth - 1).coerceAtLeast(1)
 
                 val gridLines = 5
                 for (i in 0..gridLines) {
@@ -279,22 +335,42 @@ fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
                 }
 
                 val revenuePath = Path()
-                for (i in 1..currentDay) {
+                for (i in 1..daysInMonth) {
+                    val isFutureDay = i > currentDay
+                    val color = if (isFutureDay) tertiaryColor.copy(alpha = 0.3f) else tertiaryColor
+                    
                     val x = (i - 1) * stepX
                     val y = height - (cumulativeRevenues[i].toFloat() / maxAmount * height)
                     if (i == 1) revenuePath.moveTo(x, y) else revenuePath.lineTo(x, y)
-                    drawCircle(tertiaryColor, radius = 3.dp.toPx(), center = Offset(x, y))
+                    drawCircle(color, radius = 3.dp.toPx(), center = Offset(x, y))
+                    
+                    if (i == currentDay || i == daysInMonth) {
+                        drawPath(revenuePath, color, style = Stroke(width = 2.dp.toPx()))
+                        if (i == currentDay && i < daysInMonth) {
+                            revenuePath.reset()
+                            revenuePath.moveTo(x, y)
+                        }
+                    }
                 }
-                drawPath(revenuePath, tertiaryColor, style = Stroke(width = 2.dp.toPx()))
 
                 val expensePath = Path()
-                for (i in 1..currentDay) {
+                for (i in 1..daysInMonth) {
+                    val isFutureDay = i > currentDay
+                    val color = if (isFutureDay) errorColor.copy(alpha = 0.3f) else errorColor
+                    
                     val x = (i - 1) * stepX
                     val y = height - (cumulativeExpenses[i].toFloat() / maxAmount * height)
                     if (i == 1) expensePath.moveTo(x, y) else expensePath.lineTo(x, y)
-                    drawCircle(errorColor, radius = 3.dp.toPx(), center = Offset(x, y))
+                    drawCircle(color, radius = 3.dp.toPx(), center = Offset(x, y))
+                    
+                    if (i == currentDay || i == daysInMonth) {
+                        drawPath(expensePath, color, style = Stroke(width = 2.dp.toPx()))
+                        if (i == currentDay && i < daysInMonth) {
+                            expensePath.reset()
+                            expensePath.moveTo(x, y)
+                        }
+                    }
                 }
-                drawPath(expensePath, errorColor, style = Stroke(width = 2.dp.toPx()))
 
                 selectedDay?.let { day ->
                     val x = (day - 1) * stepX
@@ -339,4 +415,132 @@ fun ComparisonLineChart(expenses: List<Expense>, revenues: List<Revenue>) {
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+@Composable
+fun MonthYearPickerDialog(
+    currentCalendar: Calendar,
+    earliestDateMillis: Long?,
+    onMonthSelected: (Calendar) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val months = listOf(
+        "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+        "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"
+    )
+    
+    val today = Calendar.getInstance()
+    val currentYear = today.get(Calendar.YEAR)
+    val currentMonth = today.get(Calendar.MONTH)
+
+    val earliestCalendar = Calendar.getInstance().apply {
+        timeInMillis = earliestDateMillis ?: today.timeInMillis
+    }
+    val earliestYear = earliestCalendar.get(Calendar.YEAR)
+    val earliestMonth = earliestCalendar.get(Calendar.MONTH)
+
+    var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH)) }
+    var selectedYear by remember { mutableIntStateOf(currentCalendar.get(Calendar.YEAR)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Wybierz miesiąc") },
+        text = {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { selectedYear-- },
+                        enabled = selectedYear > earliestYear
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowLeft, 
+                            contentDescription = "Poprzedni rok",
+                            tint = if (selectedYear > earliestYear) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.3f)
+                        )
+                    }
+                    Text(text = selectedYear.toString(), fontWeight = FontWeight.Bold)
+                    IconButton(
+                        onClick = { selectedYear++ },
+                        enabled = selectedYear < currentYear
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowRight, 
+                            contentDescription = "Następny rok",
+                            tint = if (selectedYear < currentYear) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.3f)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val rows = 4
+                    val cols = 3
+                    for (row in 0 until rows) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (col in 0 until cols) {
+                                val index = row * cols + col
+                                if (index < months.size) {
+                                    val month = months[index]
+                                    val isFuture = selectedYear == currentYear && index > currentMonth
+                                    val isBeforeEarliest = selectedYear == earliestYear && index < earliestMonth
+                                    val isEnabled = !isFuture && !isBeforeEarliest
+                                    
+                                    Button(
+                                        onClick = { selectedMonth = index },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = isEnabled,
+                                        shape = MaterialTheme.shapes.small,
+                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                                        colors = if (selectedMonth == index) 
+                                            ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        else 
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                    ) {
+                                        Text(
+                                            text = month.take(3),
+                                            fontSize = 12.sp,
+                                            maxLines = 1
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val newCalendar = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, selectedYear)
+                    set(Calendar.MONTH, selectedMonth)
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }
+                onMonthSelected(newCalendar)
+            }) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Anuluj")
+            }
+        }
+    )
 }
