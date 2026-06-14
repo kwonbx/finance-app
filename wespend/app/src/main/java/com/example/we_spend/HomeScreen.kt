@@ -588,6 +588,30 @@ fun AppDrawerContent(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Lista zakupów") },
+            selected = currentRoute == "shopping_list",
+            onClick = {
+                onClose()
+                if (currentRoute != "shopping_list") onNavigate("shopping_list")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Cele oszczędnościowe") },
+            selected = currentRoute == "saving_goals",
+            onClick = {
+                onClose()
+                if (currentRoute != "saving_goals") onNavigate("saving_goals")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
         Spacer(modifier = Modifier.weight(1f))
 
         Column(

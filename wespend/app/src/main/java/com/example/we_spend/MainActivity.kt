@@ -32,6 +32,8 @@ class MainActivity : ComponentActivity() {
         val userRepository = UserRepository()
         val expenseRepository = ExpenseRepository()
         val revenueRepository = RevenueRepository()
+        val shoppingRepository = ShoppingRepository()
+        val savingGoalRepository = SavingGoalRepository()
 
         val sharedPrefs = getSharedPreferences("WeSpendPrefs", MODE_PRIVATE)
 
@@ -84,14 +86,14 @@ class MainActivity : ComponentActivity() {
             }
 
             WespendTheme(darkTheme = darkTheme) {
-                MyApp(auth, userRepository, expenseRepository, revenueRepository, sharedPrefs, startDestination)
+                MyApp(auth, userRepository, expenseRepository, revenueRepository, shoppingRepository, savingGoalRepository, sharedPrefs, startDestination)
             }
         }
     }
 }
 
 @Composable
-fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository: ExpenseRepository, revenueRepository: RevenueRepository, sharedPrefs: SharedPreferences, startDestination: String) {
+fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository: ExpenseRepository, revenueRepository: RevenueRepository, shoppingRepository: ShoppingRepository, savingGoalRepository: SavingGoalRepository, sharedPrefs: SharedPreferences, startDestination: String) {
     val navController = rememberNavController()
 
     val vmLogin: LoginViewModel = viewModel(factory = LoginViewModel.Factory(auth, sharedPrefs))
@@ -109,6 +111,8 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
     val vmEditRevenue: EditRevenueViewModel = viewModel(factory = EditRevenueViewModel.Factory(revenueRepository))
     val editViewModel: EditRecurringViewModel = viewModel(factory = EditRecurringViewModel.Factory(expenseRepository))
     val editRevenueViewModel: EditRecurringRevenueViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = EditRecurringRevenueViewModel.Factory(revenueRepository))
+    val vmShopping: ShoppingViewModel = viewModel(factory = ShoppingViewModel.Factory(shoppingRepository, userRepository))
+    val vmSavingGoals: SavingGoalViewModel = viewModel(factory = SavingGoalViewModel.Factory(savingGoalRepository, userRepository))
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -185,6 +189,14 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
         composable("edit_recurring_revenue/{recurringId}") { backStackEntry ->
             val recurringId = backStackEntry.arguments?.getString("recurringId") ?: ""
             EditRecurringRevenueScreen(navController, editRevenueViewModel, recurringId)
+        }
+
+        composable("shopping_list") {
+            ShoppingScreen(navController, vmShopping, auth, sharedPrefs)
+        }
+
+        composable("saving_goals") {
+            SavingGoalsScreen(navController, vmSavingGoals, auth, sharedPrefs)
         }
     }
 }

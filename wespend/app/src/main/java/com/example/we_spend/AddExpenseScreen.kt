@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,13 +45,7 @@ import java.util.Locale
 fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewModel) {
     val context = LocalContext.current
     var activeDatePicker by remember { mutableStateOf<String?>(null) }
-    val datePickerState = rememberDatePickerState(
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                return utcTimeMillis <= System.currentTimeMillis()
-            }
-        }
-    )
+    val datePickerState = rememberDatePickerState()
     var expandedCategory by remember { mutableStateOf(false) }
     val receiptScanner = remember { ReceiptScanner() }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -74,7 +69,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                 val lastLocation = if (hasPermission) {
                     try {
                         fusedLocationClient.lastLocation.await()
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
                 } else null
@@ -84,6 +79,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                 if (lastLocation != null) {
                     var radius = 0.5 // Initial "zoom" area (~50km)
                     while (radius <= 10.0) { // Max expansion
+                        @Suppress("DEPRECATION")
                         val results = geocoder.getFromLocationName(
                             viewModel.shopName,
                             7,
@@ -102,15 +98,16 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                 
                 // Fallback to global search if no local results or no location permission
                 if (addresses.isNullOrEmpty()) {
+                    @Suppress("DEPRECATION")
                     addresses = geocoder.getFromLocationName(viewModel.shopName, 10)
                 }
 
                 // Filter and limit to 5 results, prioritizing those with a distinct feature name
                 // and ensuring we don't just show house numbers as titles.
                 geoSuggestions = (addresses ?: emptyList())
-                    .filter { it.featureName != null && !it.featureName.all { char -> char.isDigit() } }
+                    .filter { it.featureName != null && (!it.featureName.all { char -> char.isDigit() }) }
                     .take(5)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 geoSuggestions = emptyList()
             }
         }
@@ -119,34 +116,34 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             isScanning = true
-            receiptScanner.scanReceipt(context, uri,
+            receiptScanner.scanReceipt(
+                context, uri,
                 onResult = { shop, address, date, amount ->
                     viewModel.onReceiptScanned(shop, address, amount, date)
                     isScanning = false
                     Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
-                },
-                onError = {
-                    isScanning = false
-                    Toast.makeText(context, "Błąd skanowania", Toast.LENGTH_SHORT).show()
                 }
-            )
+            ) {
+                isScanning = false
+                Toast.makeText(context, "Błąd skanowania", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && tempImageUri != null) {
             isScanning = true
-            receiptScanner.scanReceipt(context, tempImageUri!!,
+            receiptScanner.scanReceipt(
+                context, tempImageUri!!,
                 onResult = { shop, address, date, amount ->
                     viewModel.onReceiptScanned(shop, address, amount, date)
                     isScanning = false
                     Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
-                },
-                onError = {
-                    isScanning = false
-                    Toast.makeText(context, "Błąd skanowania", Toast.LENGTH_SHORT).show()
                 }
-            )
+            ) {
+                isScanning = false
+                Toast.makeText(context, "Błąd skanowania", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -313,7 +310,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                 },
                 modifier = Modifier.fillMaxWidth(),
                 supportingText = {
-                    if (viewModel.latitude != null && viewModel.longitude != null) {
+                    if ((viewModel.latitude != null) && (viewModel.longitude != null)) {
                         Text("Lokalizacja wybrana (zapisano współrzędne)", color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
@@ -380,7 +377,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                     readOnly = true,
                     label = { Text("Kategoria") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                 )
                 ExposedDropdownMenu(
                     expanded = expandedCategory,
@@ -434,11 +431,10 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
                         onSuccess = {
                             Toast.makeText(context, "Dodano wydatek!", Toast.LENGTH_SHORT).show()
                             navController.popBackStack()
-                        },
-                        onError = { error ->
-                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
                         }
-                    )
+                    ) { error ->
+                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
