@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -128,13 +127,13 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                                 text = String.format("%.2f zł", totalBalance),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (totalBalance >= 0) Color(0xFF388E3C) else MaterialTheme.colorScheme.error
+                                color = if (totalBalance >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column {
                                     Text(text = "Przychody", style = MaterialTheme.typography.bodySmall)
-                                    Text(text = String.format("+%.2f zł", viewModel.monthlyRevenue), color = Color(0xFF388E3C), fontWeight = FontWeight.Bold)
+                                    Text(text = String.format("+%.2f zł", viewModel.monthlyRevenue), color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
                                 }
                                 Column {
                                     Text(text = "Wydatki", style = MaterialTheme.typography.bodySmall)
@@ -158,7 +157,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                                 } else {
                                     Text(
                                         text = "Pozostało z limitu: ${String.format("%.2f", remainingLimit)} zł",
-                                        color = Color(0xFF388E3C)
+                                        color = MaterialTheme.colorScheme.tertiary
                                     )
                                 }
                             } else {
@@ -390,7 +389,7 @@ fun RevenueListItem(
                 Text(
                     text = String.format("+%.2f zł", revenue.amount),
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF388E3C),
+                    color = MaterialTheme.colorScheme.tertiary,
                     fontSize = 16.sp
                 )
             }

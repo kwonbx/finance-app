@@ -3,6 +3,7 @@ package com.example.we_spend
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -110,14 +111,22 @@ fun PieChart(expenses: List<Expense>) {
     val totalAmount = categoryTotals.values.sum()
     val sortedCategories = categoryTotals.entries.sortedByDescending { it.value }
 
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary.toArgb();
-    val primaryColor = MaterialTheme.colorScheme.primary.toArgb();
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary.toArgb()
+    val primaryColor = MaterialTheme.colorScheme.primary.toArgb()
 
-    val colors = listOf(
+    val lightColors = listOf(
         Color(0xFFE57373), Color(0xFF81C784), Color(0xFF64B5F6),
         Color(0xFFFFD54F), Color(0xFFBA68C8), Color(0xFF4DB6AC),
         Color(0xFF90A4AE), Color(0xFFA1887F), Color(0xFFFF8A65)
     )
+
+    val darkColors = listOf(
+        Color(0xFFEF9A9A), Color(0xFFA5D6A7), Color(0xFF90CAF9),
+        Color(0xFFFFF59D), Color(0xFFCE93D8), Color(0xFF80CBC4),
+        Color(0xFFB0BEC5), Color(0xFFBCAAA4), Color(0xFFFFCCBC)
+    )
+
+    val colors = if (isSystemInDarkTheme()) darkColors else lightColors
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
