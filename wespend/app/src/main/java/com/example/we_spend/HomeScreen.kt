@@ -544,6 +544,18 @@ fun AppDrawerContent(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavigationDrawerItem(
+            label = { Text("Analityka") },
+            selected = currentRoute == "analytics",
+            onClick = {
+                onClose()
+                if (currentRoute != "analytics") onNavigate("analytics")
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
         Spacer(modifier = Modifier.weight(1f))
 
         Column(

@@ -81,6 +81,7 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
     val vmFamily: FamilyViewModel = viewModel(factory = FamilyViewModel.Factory(userRepository))
     val vmExpenses: ExpensesViewModel = viewModel(factory = ExpensesViewModel.Factory(expenseRepository, userRepository))
     val vmRevenues: RevenuesViewModel = viewModel(factory = RevenuesViewModel.Factory(revenueRepository, userRepository))
+    val vmAnalytics: AnalyticsViewModel = viewModel(factory = AnalyticsViewModel.Factory(expenseRepository, revenueRepository, userRepository))
     val editViewModel: EditRecurringViewModel = viewModel(factory = EditRecurringViewModel.Factory(expenseRepository))
     val editRevenueViewModel: EditRecurringRevenueViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = EditRecurringRevenueViewModel.Factory(revenueRepository))
 
@@ -119,6 +120,10 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
 
         composable("revenues") {
             RevenuesScreen(navController, vmRevenues, auth, sharedPrefs)
+        }
+
+        composable("analytics") {
+            AnalyticsScreen(navController, vmAnalytics)
         }
 
         composable("add_revenue") {
