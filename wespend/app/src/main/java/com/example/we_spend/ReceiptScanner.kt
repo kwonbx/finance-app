@@ -39,7 +39,7 @@ class ReceiptScanner {
                     }
 
                     if (foundAmounts.isNotEmpty()) {
-                        val bestAmount = foundAmounts.maxOrNull()
+                        val bestAmount = foundAmounts.lastOrNull()
 
                         if (bestAmount != null) {
                             totalAmount = String.format(java.util.Locale.US, "%.2f", bestAmount)
