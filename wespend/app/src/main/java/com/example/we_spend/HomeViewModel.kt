@@ -41,10 +41,6 @@ class HomeViewModel(
         private set
     private var invitationListener: ListenerRegistration? = null
 
-    init {
-        loadData()
-    }
-
     fun loadData() {
         viewModelScope.launch {
             isLoading = true

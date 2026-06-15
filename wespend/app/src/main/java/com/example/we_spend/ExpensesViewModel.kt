@@ -37,8 +37,6 @@ class ExpensesViewModel(
         private set
     var avatarUrl by mutableStateOf("")
         private set
-
-    // NOWA ZMIENNA: Przechowuje aktualny tekst wpisany w wyszukiwarkę
     var searchQuery by mutableStateOf("")
         private set
 
@@ -52,6 +50,8 @@ class ExpensesViewModel(
             isLoading = true
 
             expenseRepository.processRecurringExpenses()
+
+            searchQuery = ""
 
             allFetchedExpenses = emptyList()
             familyMembers = emptyList()
@@ -89,7 +89,7 @@ class ExpensesViewModel(
                 expenseRepository.getExpensesFrom(fromDateMillis)
             }
 
-            allFetchedExpenses = expenses.sortedByDescending { it.dateInMillis }
+            allFetchedExpenses = expenses.sortedByDescending { it.dateInMillis }.toList()
             isLoading = false
         }
     }

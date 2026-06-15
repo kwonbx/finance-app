@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 
 class EditRevenueViewModel(private val revenueRepository: RevenueRepository) : ViewModel() {
     var title by mutableStateOf("")
@@ -37,7 +38,7 @@ class EditRevenueViewModel(private val revenueRepository: RevenueRepository) : V
                     revenue?.let {
                         currentRevenue = it
                         title = it.title
-                        amount = it.amount.toString()
+                        amount = String.format(Locale.US, "%.2f", it.amount)
                         selectedCategory = it.category
                         revenueDate = Instant.ofEpochMilli(it.dateInMillis).atZone(ZoneId.systemDefault()).toLocalDate()
                         recurringRevenueId = it.recurringRevenueId

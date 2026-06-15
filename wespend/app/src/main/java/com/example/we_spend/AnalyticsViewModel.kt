@@ -21,6 +21,10 @@ class AnalyticsViewModel(
 
     var selectedCalendar by mutableStateOf(Calendar.getInstance())
     var earliestDateMillis by mutableStateOf<Long?>(null)
+    var userName by mutableStateOf("")
+        private set
+    var avatarUrl by mutableStateOf("")
+        private set
 
     fun loadData(calendar: Calendar = selectedCalendar) {
         selectedCalendar = calendar
@@ -28,6 +32,8 @@ class AnalyticsViewModel(
             isLoading = true
             val user = userRepository.getUserProfile()
             val familyId = user?.familyId
+            userName = user?.name ?: ""
+            avatarUrl = user?.avatarUrl ?: ""
 
             if (earliestDateMillis == null) {
                 val expenseEarliest = expenseRepository.getEarliestExpenseDate(familyId)

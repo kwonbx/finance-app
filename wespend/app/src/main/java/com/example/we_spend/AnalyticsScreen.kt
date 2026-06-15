@@ -1,5 +1,6 @@
 package com.example.we_spend
 
+import android.content.SharedPreferences
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,17 +29,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import androidx.core.content.edit
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel) {
+fun AnalyticsScreen(
+    navController: NavController,
+    viewModel: AnalyticsViewModel,
+    auth: FirebaseAuth,
+    sharedPrefs: SharedPreferences
+) {
     val scrollState = rememberScrollState()
     var showDatePicker by remember { mutableStateOf(false) }
+
+    // Stan i scope dla wysuwanego menu
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.loadData()
@@ -47,104 +61,124 @@ fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel)
     val monthYearFormat = SimpleDateFormat("MMMM yyyy", polishLocale)
     val selectedMonthLabel = monthYearFormat.format(viewModel.selectedCalendar.time)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Analityka", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Powrót")
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            AppDrawerContent(
+                userName = viewModel.userName,
+                avatarUrl = viewModel.avatarUrl,
+                currentRoute = "analytics",
+                onNavigate = { route -> navController.navigate(route) },
+                onLogout = {
+                    sharedPrefs.edit { putBoolean("REMEMBER_ME", false) }
+                    auth.signOut()
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
-                actions = {
-                    TextButton(onClick = { showDatePicker = true }) {
-                        Text(
-                            text = selectedMonthLabel.replaceFirstChar { if (it.isLowerCase()) it.titlecase(polishLocale) else it.toString() },
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                )
+                onClose = { scope.launch { drawerState.close() } }
             )
         }
-    ) { paddingValues ->
-        if (showDatePicker) {
-            MonthYearPickerDialog(
-                currentCalendar = viewModel.selectedCalendar,
-                earliestDateMillis = viewModel.earliestDateMillis,
-                onMonthSelected = { newCalendar ->
-                    viewModel.loadData(newCalendar)
-                    showDatePicker = false
-                },
-                onDismiss = { showDatePicker = false }
-            )
-        }
-
-        if (viewModel.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp)
-                    .verticalScroll(scrollState)
-            ) {
-                Text(
-                    text = "Podsumowanie kategorii (Wydatki)",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (viewModel.expenses.isEmpty()) {
-                    Text("Brak danych o wydatkach w tym miesiącu.")
-                } else {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Box(modifier = Modifier.padding(16.dp)) {
-                            PieChart(expenses = viewModel.expenses)
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Analityka", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    text = "Przychody vs Wydatki (W czasie)",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (viewModel.expenses.isEmpty() && viewModel.revenues.isEmpty()) {
-                    Text("Brak danych do porównania.")
-                } else {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Box(modifier = Modifier.padding(16.dp)) {
-                            ComparisonLineChart(
-                                expenses = viewModel.expenses, 
-                                revenues = viewModel.revenues,
-                                selectedCalendar = viewModel.selectedCalendar
+                    },
+                    actions = {
+                        TextButton(onClick = { showDatePicker = true }) {
+                            Text(
+                                text = selectedMonthLabel.replaceFirstChar { if (it.isLowerCase()) it.titlecase(polishLocale) else it.toString() },
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-                    }
-                }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    )
+                )
+            }
+        ) { paddingValues ->
+            if (showDatePicker) {
+                MonthYearPickerDialog(
+                    currentCalendar = viewModel.selectedCalendar,
+                    earliestDateMillis = viewModel.earliestDateMillis,
+                    onMonthSelected = { newCalendar ->
+                        viewModel.loadData(newCalendar)
+                        showDatePicker = false
+                    },
+                    onDismiss = { showDatePicker = false }
+                )
+            }
 
-                Spacer(modifier = Modifier.height(32.dp))
+            if (viewModel.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(16.dp)
+                        .verticalScroll(scrollState)
+                ) {
+                    Text(
+                        text = "Podsumowanie kategorii (Wydatki)",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (viewModel.expenses.isEmpty()) {
+                        Text("Brak danych o wydatkach w tym miesiącu.")
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Box(modifier = Modifier.padding(16.dp)) {
+                                PieChart(expenses = viewModel.expenses)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Text(
+                        text = "Przychody vs Wydatki (W czasie)",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (viewModel.expenses.isEmpty() && viewModel.revenues.isEmpty()) {
+                        Text("Brak danych do porównania.")
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Box(modifier = Modifier.padding(16.dp)) {
+                                ComparisonLineChart(
+                                    expenses = viewModel.expenses,
+                                    revenues = viewModel.revenues,
+                                    selectedCalendar = viewModel.selectedCalendar
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
         }
     }

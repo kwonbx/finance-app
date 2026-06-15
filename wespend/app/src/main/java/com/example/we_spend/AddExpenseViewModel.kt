@@ -250,15 +250,12 @@ class AddExpenseViewModel(private val expenseRepository: ExpenseRepository, priv
             }
         }
     }
-    fun onReceiptScanned(shopName: String, address: String, scannedAmount: String, scannedDate: String) {
+    fun onReceiptScanned(shopName: String, scannedAmount: String, scannedDate: String) {
         if (shopName.isNotBlank()) {
             this.shopName = shopName
             if (this.title.isBlank()) {
                 this.title = shopName
             }
-        }
-        if (address.isNotBlank()) {
-            this.address = address
         }
         if (scannedAmount.isNotBlank()) {
             amount = scannedAmount

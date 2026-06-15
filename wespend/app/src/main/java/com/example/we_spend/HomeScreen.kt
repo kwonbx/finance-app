@@ -213,10 +213,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                             ) {
                                 items(viewModel.recentExpenses) { expense ->
                                     ExpenseListItem(
-                                        expense = expense,
-                                        onClick = {
-                                            navController.navigate("edit_expense/${expense.id}")
-                                        }
+                                        expense = expense
                                     )
                                 }
                             }
@@ -233,11 +230,9 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel, auth: Fir
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 items(viewModel.recentRevenues) { revenue ->
+                                    // ZMIANA: Zostawiamy samo 'revenue = revenue', usuwamy 'onClick'
                                     RevenueListItem(
-                                        revenue = revenue,
-                                        onClick = {
-                                            navController.navigate("edit_revenue/${revenue.id}")
-                                        }
+                                        revenue = revenue
                                     )
                                 }
                             }
@@ -285,7 +280,7 @@ fun ExpenseListItem(
     val isMyExpense = currentUserId == expense.userId
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = onClick != null) {
+        modifier = Modifier.fillMaxWidth().clickable(enabled = isMyExpense && onClick != null) {
             onClick?.invoke()
         },
         shape = RoundedCornerShape(8.dp),
@@ -385,7 +380,7 @@ fun RevenueListItem(
     val isMyRevenue = currentUserId == revenue.userId
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = onClick != null) {
+        modifier = Modifier.fillMaxWidth().clickable(enabled = isMyRevenue && onClick != null) {
             onClick?.invoke()
         },
         shape = RoundedCornerShape(8.dp),

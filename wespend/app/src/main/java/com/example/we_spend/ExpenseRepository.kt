@@ -10,16 +10,14 @@ import java.time.ZoneId
 class ExpenseRepository {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    companion object {
+        private var isProcessingExpenses = false
+    }
 
     fun addExpense(expense: Expense, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak użytkownika"))
-
         val documentRef = db.collection("users").document(userId).collection("expenses").document()
-
-        val expenseWithId = expense.copy(
-            id = documentRef.id,
-            userId = userId
-        )
+        val expenseWithId = expense.copy(id = documentRef.id, userId = userId)
 
         documentRef.set(expenseWithId)
             .addOnSuccessListener { onSuccess() }
@@ -150,21 +148,21 @@ class ExpenseRepository {
 
     fun addRecurringExpense(recurring: RecurringExpense, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = auth.currentUser?.uid ?: return onFailure(Exception("Brak zalogowanego użytkownika"))
-
         val documentRef = db.collection("users").document(userId).collection("recurring_expenses").document()
-
         val recurringWithId = recurring.copy(id = documentRef.id, userId = userId)
 
         documentRef.set(recurringWithId)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onFailure(e) }
     }
-
     suspend fun processRecurringExpenses() {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val nowMillis = System.currentTimeMillis()
+        if (isProcessingExpenses) return
+        isProcessingExpenses = true
 
         try {
+            val currentUserId = auth.currentUser?.uid ?: return
+            val nowMillis = System.currentTimeMillis()
+
             val snapshot = db.collection("users").document(currentUserId)
                 .collection("recurring_expenses")
                 .whereEqualTo("isActive", true)
@@ -218,6 +216,8 @@ class ExpenseRepository {
 
         } catch (e: Exception) {
             e.printStackTrace()
+        } finally {
+            isProcessingExpenses = false
         }
     }
 

@@ -118,8 +118,8 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
             isScanning = true
             receiptScanner.scanReceipt(
                 context, uri,
-                onResult = { shop, address, date, amount ->
-                    viewModel.onReceiptScanned(shop, address, amount, date)
+                onResult = { shop, date, amount ->
+                    viewModel.onReceiptScanned(shop, amount, date)
                     isScanning = false
                     Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
                 }
@@ -135,8 +135,8 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
             isScanning = true
             receiptScanner.scanReceipt(
                 context, tempImageUri!!,
-                onResult = { shop, address, date, amount ->
-                    viewModel.onReceiptScanned(shop, address, amount, date)
+                onResult = { shop, date, amount ->
+                    viewModel.onReceiptScanned(shop, amount, date)
                     isScanning = false
                     Toast.makeText(context, "Zeskanowano paragon!", Toast.LENGTH_SHORT).show()
                 }
@@ -298,23 +298,27 @@ fun AddExpenseScreen(navController: NavController, viewModel: AddExpenseViewMode
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = viewModel.address,
-                onValueChange = { viewModel.updateAddress(it) },
-                label = { Text("Adres (opcjonalnie)") },
-                singleLine = true,
-                trailingIcon = {
-                    IconButton(onClick = { navController.navigate("location_picker") }) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = "Wybierz na mapie")
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = viewModel.address,
+                    onValueChange = {},
+                    label = { Text("Adres (opcjonalnie)") },
+                    singleLine = true,
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(onClick = { navController.navigate("location_picker") }) {
+                            Icon(Icons.Filled.LocationOn, contentDescription = "Wybierz na mapie")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        if ((viewModel.latitude != null) && (viewModel.longitude != null)) {
+                            Text("Lokalizacja wybrana (zapisano współrzędne)", color = MaterialTheme.colorScheme.tertiary)
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                supportingText = {
-                    if ((viewModel.latitude != null) && (viewModel.longitude != null)) {
-                        Text("Lokalizacja wybrana (zapisano współrzędne)", color = MaterialTheme.colorScheme.tertiary)
-                    }
-                }
-            )
+                )
+                Box(modifier = Modifier.matchParentSize().clickable { navController.navigate("location_picker") })
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 

@@ -19,11 +19,18 @@ class MapViewModel(
     var expenses by mutableStateOf<List<Expense>>(emptyList())
         private set
 
+    var userName by mutableStateOf("")
+        private set
+    var avatarUrl by mutableStateOf("")
+        private set
+
     fun loadData() {
         viewModelScope.launch {
             isLoading = true
             val user = userRepository.getUserProfile()
             val familyId = user?.familyId
+            userName = user?.name ?: ""
+            avatarUrl = user?.avatarUrl ?: ""
 
             val userExpenses = expenseRepository.getExpensesFrom(0L) // Get all
             val familyExpenses = if (!familyId.isNullOrEmpty()) {

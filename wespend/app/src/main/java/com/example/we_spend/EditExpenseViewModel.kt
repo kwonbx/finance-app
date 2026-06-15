@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 
 class EditExpenseViewModel(private val expenseRepository: ExpenseRepository) : ViewModel(), LocationViewModel {
     var title by mutableStateOf("")
@@ -68,16 +69,14 @@ class EditExpenseViewModel(private val expenseRepository: ExpenseRepository) : V
         if (currentExpense?.id == expenseId) return
         isLoading = true
         viewModelScope.launch {
-            // Since we don't have a direct getExpenseById in repository, we might need one or find it in history
-            // For now, I'll assume we pass the ID and the repository has a way to get it
-            // I will add getExpenseById to ExpenseRepository if it doesn't exist
+
             expenseRepository.getExpense(expenseId, 
                 onSuccess = { expense ->
                     expense?.let {
                         currentExpense = it
                         title = it.title
                         shopName = it.shopName
-                        amount = it.amount.toString()
+                        amount = String.format(Locale.US, "%.2f", it.amount)
                         selectedCategory = it.category
                         address = it.address ?: ""
                         latitude = it.latitude

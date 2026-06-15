@@ -170,11 +170,11 @@ fun MyApp(auth: FirebaseAuth, userRepository: UserRepository, expenseRepository:
         }
 
         composable("analytics") {
-            AnalyticsScreen(navController, vmAnalytics)
+            AnalyticsScreen(navController, vmAnalytics, auth, sharedPrefs)
         }
 
         composable("map") {
-            MapScreen(navController, vmMap)
+            MapScreen(navController, vmMap, auth, sharedPrefs)
         }
 
         composable("add_revenue") {

@@ -160,22 +160,26 @@ fun EditExpenseScreen(navController: NavController, viewModel: EditExpenseViewMo
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = viewModel.address,
-                    onValueChange = { viewModel.updateAddress(it) },
-                    label = { Text("Adres") },
-                    trailingIcon = {
-                        IconButton(onClick = { navController.navigate("location_picker_edit") }) {
-                            Icon(Icons.Filled.LocationOn, contentDescription = "Zmień lokalizację")
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = viewModel.address,
+                        onValueChange = {},
+                        label = { Text("Adres") },
+                        readOnly = true,
+                        trailingIcon = {
+                            IconButton(onClick = { navController.navigate("location_picker_edit") }) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = "Zmień lokalizację")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = {
+                            if (viewModel.latitude != null && viewModel.longitude != null) {
+                                Text("Lokalizacja wybrana (zapisano współrzędne)", color = MaterialTheme.colorScheme.tertiary)
+                            }
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = {
-                        if (viewModel.latitude != null && viewModel.longitude != null) {
-                            Text("Lokalizacja wybrana (zapisano współrzędne)", color = MaterialTheme.colorScheme.tertiary)
-                        }
-                    }
-                )
+                    )
+                    Box(modifier = Modifier.matchParentSize().clickable { navController.navigate("location_picker_edit") })
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
